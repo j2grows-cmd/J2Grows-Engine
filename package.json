@@ -1,0 +1,13 @@
+{
+  "name": "@j2grows/engine",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Headless gameplay systems for the J2Grows botanical genetics simulation.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.2"
+  }
+}
