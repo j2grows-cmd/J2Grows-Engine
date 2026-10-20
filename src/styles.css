@@ -69,3 +69,7 @@
   .welcome-content>p{margin-bottom:20px}
   .welcome-bottom{margin-top:28px}
 }
+
+/* A real catalogue photo replaces the CSS-drawn placeholder; transparent PNGs must not show both. */
+.plant-art.image-loaded .halo,.plant-art.image-loaded .stem,.plant-art.image-loaded .leaf,.plant-art.image-loaded .caption{display:none}
+.plant-art.image-loaded{background:#11170f}
