@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, propagatePlant, startBreeding } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 
 test("new game is headless and starts with the intended economy", () => {
@@ -65,4 +65,35 @@ test("mutation analysis cannot start without a living specimen", () => {
   const result = startMutationAnalysis(createGameState("analysis-test"), "missing-specimen");
   assert.equal(result.ok, false);
   assert.equal(result.state.cash, 100);
+});
+
+
+test("corm harvest is limited to once per specimen per simulation year", () => {
+  const initial = createGameState("corm-limit-test");
+  const bought = purchasePlant(initial, findSpecies("alocasia-polly"));
+  const id = bought.state.specimens[0].id;
+  const mature = { ...bought.state, specimens: bought.state.specimens.map((s) => s.id === id ? { ...s, stage: "Mature" } : s) };
+  const harvested = propagatePlant(mature, id, "corm");
+  assert.equal(harvested.ok, true);
+  assert.equal(harvested.state.specimens.find((s) => s.id === id).lastCormHarvestYear, 0);
+  const second = propagatePlant(harvested.state, id, "corm");
+  assert.equal(second.ok, false);
+  assert.match(second.message, /already yielded a corm this year/);
+});
+
+test("specimens under Mutation Analysis cannot be propagated or used in a cross", () => {
+  let state = createGameState("analysis-reservation-test");
+  const a = purchasePlant(state, findSpecies("alocasia-polly"));
+  state = { ...a.state, specimens: a.state.specimens.map((s) => ({ ...s, stage: "Breeding-ready" })) };
+  const b = purchasePlant(state, findSpecies("alocasia-polly"));
+  state = { ...b.state, specimens: b.state.specimens.map((s, i) => ({ ...s, stage: "Breeding-ready" })) };
+  const targetId = state.specimens[0].id;
+  const started = startMutationAnalysis(state, targetId);
+  assert.equal(started.ok, true);
+  const propagation = propagatePlant(started.state, targetId, "corm");
+  assert.equal(propagation.ok, false);
+  assert.match(propagation.message, /reserved by Mutation Analysis/);
+  const cross = startBreeding(started.state, targetId, state.specimens[1].id);
+  assert.equal(cross.ok, false);
+  assert.match(cross.message, /reserved by Mutation Analysis/);
 });
