@@ -104,7 +104,7 @@ The following staged foundations have now been committed directly to `main`:
 - **Save safety:** live-format validation and normalization; versioned save metadata; rotating backups; corrupt-save preservation; restore-last-valid-backup UI; finance, staff, shipment, and progression defaults during recovery.
 - **Finance:** transaction ledger, weekly staff/facility charges, arrears, automatic arrears repayment from incoming cash, capped loans, weekly loan interest, repayment controls, and voluntary liquidation of unprotected/unreserved living specimens.
 - **Market:** deterministic time-varying quotes by species and rarity, local stock-saturation discounts, and market-adjusted buyback offers.
-- **Plant health:** species-level catalogue light/humidity suitability, pest/disease pressure and same-location transmission, treatment actions, quarantine release rules, and care-consistency affecting daily health.
+- **Plant health:** species-level catalogue light/humidity suitability, pest/disease pressure and same-location transmission, expertise-gated diagnosis and treatment, quarantine release rules, and care-consistency affecting daily health. Mature Alocasia and selected aroids may leave viable propagation material after death, but salvage is not guaranteed.
 - **Facilities:** condition wear, degraded environmental-control effectiveness, maintenance actions, and maintenance-technician mitigation.
 - **Workforce:** role-based hiring and dismissal, weekly wages, experience, morale, care/research/reputation effects, and preventive-maintenance effects.
 - **Commercial operations:** global supplier regions, freight and transit times, shipment collection/quarantine loads, weekly customer orders, fulfilment, deadlines, and reputation consequences.
@@ -114,7 +114,7 @@ The following staged foundations have now been committed directly to `main`:
 
 ### Still outstanding before calling the full design complete
 
-- True long-form species-specific biology with substrate/moisture, temperature, airflow, watering schedules, and expertise-gated treatment diagnosis.
+- True long-form species-specific biology with substrate/moisture, temperature, airflow, and watering schedules.
 - More granular spatial pest/disease transmission beyond shared-location pressure, plus expertise-gated diagnosis.
 - Supplier reputation, customs/import compliance, supplier payment terms, and larger-scale supplier contracts.
 - A deeper multi-product nursery inventory, competitor supply/demand, auction clearing, wholesale contracts, and licensing.
