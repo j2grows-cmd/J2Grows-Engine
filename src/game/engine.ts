@@ -138,6 +138,7 @@ export function sellPlant(state: GameState, id: string): ActionResult {
   const specimen = state.specimens.find(s => s.id === id);
   if (!specimen) return result(state, false, "Specimen not found.");
   if (specimen.dead || specimen.health <= 0) return result(state, false, "Dead specimens have no sale value.");
+  if (specimen.location.startsWith("Supplier quarantine")) return result(state, false, "Quarantined specimens cannot be sold until cleared.");
   if (specimen.protected) return result(state, false, "Remove specimen protection before selling.");
   if (specimen.reservedByProjectId || (state.projectStarted && state.analysisTargetSpecimenId === id)) return result(state, false, "This specimen is reserved by an active project.");
   const plant = findSpecies(specimen.speciesId);
@@ -185,7 +186,7 @@ export function propagatePlant(state: GameState, parentId: string, method: Propa
   const parent = state.specimens.find(s => s.id === parentId);
   if (!parent) return result(state, false, "Parent specimen not found.");
   const plant = findSpecies(parent.speciesId), genus = plant.latin.split(" ")[0].toLowerCase();
-  const allowed = !parent.dead && parent.health > 0 && !parent.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === parentId) && ((method === "division" && canCreateOffset(parent.stage)) || method === "tissue-culture" || (method === "cutting" && ["monstera","philodendron","anthurium"].includes(genus) && ["Mature","Breeding-ready"].includes(parent.stage)) || (method === "corm" && genus === "alocasia" && ["Mature","Breeding-ready"].includes(parent.stage)));
+  const allowed = !parent.dead && parent.health > 0 && !parent.location.startsWith("Supplier quarantine") && !parent.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === parentId) && ((method === "division" && canCreateOffset(parent.stage)) || method === "tissue-culture" || (method === "cutting" && ["monstera","philodendron","anthurium"].includes(genus) && ["Mature","Breeding-ready"].includes(parent.stage)) || (method === "corm" && genus === "alocasia" && ["Mature","Breeding-ready"].includes(parent.stage)));
   if (!allowed) return result(state, false, "This specimen is not eligible for that propagation method.");
   if (method === "corm" && parent.lastCormHarvestYear === Math.floor((state.day - 1) / 365)) return result(state, false, "This Alocasia has already yielded a corm this year.");
   const rarity = (getSpeciesEconomy(plant.id)?.rarity ?? getSpeciesEconomy(plant.name)?.rarity ?? plant.rarity) as RarityTier;
@@ -213,6 +214,7 @@ export function propagatePlant(state: GameState, parentId: string, method: Propa
 export function startBreeding(state: GameState, parentAId: string, parentBId: string, targetTrait?: TargetableTrait): ActionResult {
   const a=state.specimens.find(s=>s.id===parentAId), b=state.specimens.find(s=>s.id===parentBId);
   if (!a || !b) return result(state,false,"Choose two available parent specimens.");
+  if (a.location.startsWith("Supplier quarantine") || b.location.startsWith("Supplier quarantine")) return result(state, false, "Quarantined specimens cannot enter breeding until cleared.");
   const speciesA=findSpecies(a.speciesId), speciesB=findSpecies(b.speciesId);
   const eligibility=assessCrossEligibility({id:a.id,genus:speciesA.latin.split(" ")[0],stage:a.stage,health:a.health,dead:a.dead,reserved:Boolean(a.reservedByProjectId)||(state.projectStarted&&state.analysisTargetSpecimenId===a.id)},{id:b.id,genus:speciesB.latin.split(" ")[0],stage:b.stage,health:b.health,dead:b.dead,reserved:Boolean(b.reservedByProjectId)||(state.projectStarted&&state.analysisTargetSpecimenId===b.id)});
   if (!eligibility.eligible) return result(state,false,eligibility.reason ?? "These parents cannot be crossed.");
@@ -327,7 +329,7 @@ export function fulfillCustomerOrder(state: GameState, orderId: string): ActionR
   const order = state.customerOrders.find((item) => item.id === orderId);
   if (!order || order.status !== "open") return result(state, false, "Customer order is not open.");
   if (state.day > order.dueDay) return result(state, false, "This customer order has passed its deadline.");
-  const stock = state.specimens.filter((item) => item.speciesId === order.speciesId && !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === item.id));
+  const stock = state.specimens.filter((item) => item.speciesId === order.speciesId && !item.dead && item.health > 0 && !item.protected && !item.location.startsWith("Supplier quarantine") && !item.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === item.id));
   if (stock.length < order.quantity) return result(state, false, "Not enough eligible stock to fulfil this order.");
   const soldIds = new Set(stock.slice(0, order.quantity).map((item) => item.id));
   const revenue = order.unitPrice * order.quantity;
@@ -553,7 +555,7 @@ export function advanceGameDay(state: GameState): ActionResult {
     notices.push(overdue.length + " customer order(s) expired; reputation declined.");
   }
   if (day % 7 === 0) {
-    const available = next.specimens.filter((item) => !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !(next.projectStarted && next.analysisTargetSpecimenId === item.id) && !item.propagation);
+    const available = next.specimens.filter((item) => !item.dead && item.health > 0 && !item.protected && !item.location.startsWith("Supplier quarantine") && !item.reservedByProjectId && !(next.projectStarted && next.analysisTargetSpecimenId === item.id) && !item.propagation);
     const candidates = available.filter((item) => !next.customerOrders.some((order) => order.status === "open" && order.speciesId === item.speciesId));
     if (candidates.length > 0) {
       const random = createEventRandom(state.simulationSeed, "day:" + day + ":customer-order");
