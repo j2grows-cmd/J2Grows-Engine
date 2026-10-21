@@ -109,3 +109,61 @@ test("staff training charges once and refuses a second concurrent course", () =>
   assert.equal(duplicate.ok, false);
   assert.equal(duplicate.state.cash, started.state.cash);
 });
+
+
+test("day advancement preserves dead specimens at zero health and zero value", () => {
+  const bought = purchasePlant(createGameState("dead-day-test"), species[0] ?? findSpecies("alocasia-polly"));
+  const id = bought.state.specimens[0].id;
+  const damaged = {
+    ...bought.state,
+    specimens: bought.state.specimens.map((specimen) =>
+      specimen.id === id ? { ...specimen, health: 0, dead: true, value: 50 } : specimen
+    ),
+  };
+  const advanced = advanceGameDay(damaged);
+  const dead = advanced.state.specimens.find((specimen) => specimen.id === id);
+  assert.equal(advanced.state.day, damaged.day + 1);
+  assert.equal(dead.dead, true);
+  assert.equal(dead.health, 0);
+  assert.equal(dead.value, 0);
+});
+
+test("day advancement completes mutation analysis once and clears project state", () => {
+  const bought = purchasePlant(createGameState("analysis-completion-test"), species[0] ?? findSpecies("alocasia-polly"));
+  const id = bought.state.specimens[0].id;
+  const started = startMutationAnalysis(bought.state, id);
+  assert.equal(started.ok, true);
+  let state = started.state;
+  state = { ...state, day: state.day + 2 };
+  const completed = advanceGameDay(state);
+  const specimen = completed.state.specimens.find((item) => item.id === id);
+  assert.equal(completed.state.projectStarted, false);
+  assert.equal(completed.state.analysisTargetSpecimenId, undefined);
+  assert.equal(completed.state.research, 10);
+  assert.equal(specimen.mutationAnalysisCompleted, true);
+  const next = advanceGameDay(completed.state);
+  assert.equal(next.state.research, 10);
+});
+
+test("completed breeding projects release both parents and create one offspring", () => {
+  const plant = species.find((candidate) => candidate.latin.split(" ")[0] === "Alocasia") ?? species[0] ?? findSpecies("alocasia-polly");
+  const one = purchasePlant(createGameState("breeding-completion-test"), plant);
+  const two = purchasePlant(one.state, plant);
+  const [a, b] = two.state.specimens;
+  const ready = {
+    ...two.state,
+    specimens: two.state.specimens.map((specimen) => ({ ...specimen, stage: "Breeding-ready", health: 100 })),
+  };
+  const started = startBreeding(ready, a.id, b.id);
+  assert.equal(started.ok, true);
+  const project = started.state.breedingProjects[0];
+  const primed = {
+    ...started.state,
+    breedingProjects: started.state.breedingProjects.map((item) => ({ ...item, completesOnDay: started.state.day + 1, failureChance: 0 })),
+  };
+  const completed = advanceGameDay(primed);
+  const finished = completed.state.breedingProjects.find((item) => item.id === project.id);
+  assert.equal(finished.status, "completed");
+  assert.equal(completed.state.specimens.length, 3);
+  assert.ok(completed.state.specimens.filter((specimen) => specimen.id === a.id || specimen.id === b.id).every((specimen) => !specimen.reservedByProjectId));
+});
