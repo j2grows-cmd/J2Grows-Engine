@@ -53,7 +53,7 @@ J2Grows is a premium, desktop-first botanical empire simulator combining species
 - [x] Reject propagation from dead/zero-health specimens.
 - [x] Reject selling dead/zero-health specimens.
 - [x] Add regression tests for the above.
-- [ ] Verify CI results for the new tests.
+- [x] Verify CI results for the new tests.
 
 ### Batch 2 — Save reliability
 - Integrate validation with the active app save format instead of maintaining unrelated validation logic.
@@ -88,13 +88,14 @@ J2Grows is a premium, desktop-first botanical empire simulator combining species
 - Aggregate low-frequency/irrelevant background systems where appropriate while preserving important outcomes.
 - Run comprehensive tests, typecheck, production build, browser playthroughs, save migrations, and offline-return scenarios.
 
-## Current audit notes
-- The active UI reads and writes a localStorage payload with `version: 1`, while `src/game/save-validation.ts` contains a separate migration/normalization path for versions through 9; these need a single integrated contract.
-- Staff and facility modules expose weekly cost calculators, but the inspected daily engine path does not charge those costs.
-- The Ledger contains summary metrics and placeholder transaction copy rather than a transaction history.
-- Offline-progress currently exposes a bounded day calculation; end-to-end application of offline days still requires verification.
-- Repository source was inspected through GitHub. Do not claim local tests/builds or browser verification unless those checks are actually observed.
+## Initial audit findings and current status
 
+- The live app save path now uses `src/game/save-store.ts` for validation, normalization, versioned save metadata, backup rotation, and recovery. The older independent schema normalizer in `src/game/save-validation.ts` still needs a unified migration contract across all historic formats.
+- Staff and facility weekly costs are now charged on in-game day boundaries; unpaid operating costs accumulate as arrears, incoming cash prioritises arrears, loans accrue interest, and liquidation can repay liabilities.
+- The Ledger now records cash-changing actions, recurring costs, liability movements, and cash impact separately.
+- Offline progress now replays the normal deterministic daily simulation, with opt-in behaviour and a 14-day cap.
+- CI runs typecheck, production build, and the Node test suite. A 10,000-specimen daily simulation regression test is included. Browser-based manual verification remains outstanding.
+- Some long-horizon systems are intentionally not represented as complete: multi-location empire management, full supplier contracts/customs, auction clearing, richer substrate/temperature/watering biology, and broader competitor simulation remain planned work.
 
 ## Implementation status — 2026-10-21
 
