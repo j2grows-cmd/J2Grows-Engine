@@ -20,11 +20,36 @@ export function getSpeciesCareProfile(scientificName: string, difficulty: "Easy"
   return { ...profile, baseGrowthFactor: profile.baseGrowthFactor * difficultyFactor };
 }
 
-/** Scores how closely the current conditions fit this plant rather than treating all genera identically. */
-export function calculateSpeciesSuitability(scientificName: string, difficulty: "Easy" | "Moderate" | "Advanced", environment: PlantEnvironment): number {
+function preferredLightFromDescription(description: string | undefined, fallback: number): number {
+  const value = (description ?? "").toLowerCase();
+  if (/low\\s*(to|-)\\s*medium/.test(value)) return 42;
+  if (/medium\\s*(to|-)\\s*bright/.test(value)) return 58;
+  if (value.includes("direct")) return 82;
+  if (value.includes("low")) return 35;
+  if (value.includes("medium")) return 50;
+  if (value.includes("bright")) return 68;
+  return fallback;
+}
+function preferredHumidityFromDescription(description: string | undefined, fallback: number): number {
+  const match = (description ?? "").match(/(\\d{2,3})\\s*[–-]\\s*(\\d{2,3})\\s*%?/);
+  if (!match) return fallback;
+  const low = Number(match[1]), high = Number(match[2]);
+  if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high > 100 || low > high) return fallback;
+  return (low + high) / 2;
+}
+
+/** Scores conditions against both genus baselines and the catalogue's species-level care guidance. */
+export function calculateSpeciesSuitability(
+  scientificName: string,
+  difficulty: "Easy" | "Moderate" | "Advanced",
+  environment: PlantEnvironment,
+  care?: { light?: string; humidity?: string },
+): number {
   const profile = getSpeciesCareProfile(scientificName, difficulty);
-  const light = 100 - Math.abs(clamp(environment.light) - profile.preferredLight) * 1.35;
-  const humidity = 100 - Math.abs(clamp(environment.humidity) - profile.preferredHumidity) * 1.15;
+  const preferredLight = preferredLightFromDescription(care?.light, profile.preferredLight);
+  const preferredHumidity = preferredHumidityFromDescription(care?.humidity, profile.preferredHumidity);
+  const light = 100 - Math.abs(clamp(environment.light) - preferredLight) * 1.35;
+  const humidity = 100 - Math.abs(clamp(environment.humidity) - preferredHumidity) * 1.15;
   const nutrition = 100 - Math.abs(clamp(environment.nutrition) - profile.preferredNutrition) * 1.1;
   const health = clamp(environment.health);
   return Math.round(clamp((light + humidity + nutrition + health) / 4));
