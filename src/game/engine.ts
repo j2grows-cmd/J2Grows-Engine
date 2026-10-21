@@ -170,7 +170,7 @@ export function propagatePlant(state: GameState, parentId: string, method: Propa
   const parent = state.specimens.find(s => s.id === parentId);
   if (!parent) return result(state, false, "Parent specimen not found.");
   const plant = findSpecies(parent.speciesId), genus = plant.latin.split(" ")[0].toLowerCase();
-  const allowed = !parent.dead && parent.health > 0 && !parent.reservedByProjectId && ((method === "division" && canCreateOffset(parent.stage)) || method === "tissue-culture" || (method === "cutting" && ["monstera","philodendron","anthurium"].includes(genus) && ["Mature","Breeding-ready"].includes(parent.stage)) || (method === "corm" && genus === "alocasia" && ["Mature","Breeding-ready"].includes(parent.stage)));
+  const allowed = !parent.dead && parent.health > 0 && !parent.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === parentId) && ((method === "division" && canCreateOffset(parent.stage)) || method === "tissue-culture" || (method === "cutting" && ["monstera","philodendron","anthurium"].includes(genus) && ["Mature","Breeding-ready"].includes(parent.stage)) || (method === "corm" && genus === "alocasia" && ["Mature","Breeding-ready"].includes(parent.stage)));
   if (!allowed) return result(state, false, "This specimen is not eligible for that propagation method.");
   if (method === "corm" && parent.lastCormHarvestYear === Math.floor((state.day - 1) / 365)) return result(state, false, "This Alocasia has already yielded a corm this year.");
   const rarity = (getSpeciesEconomy(plant.id)?.rarity ?? getSpeciesEconomy(plant.name)?.rarity ?? plant.rarity) as RarityTier;
@@ -199,7 +199,7 @@ export function startBreeding(state: GameState, parentAId: string, parentBId: st
   const a=state.specimens.find(s=>s.id===parentAId), b=state.specimens.find(s=>s.id===parentBId);
   if (!a || !b) return result(state,false,"Choose two available parent specimens.");
   const speciesA=findSpecies(a.speciesId), speciesB=findSpecies(b.speciesId);
-  const eligibility=assessCrossEligibility({id:a.id,genus:speciesA.latin.split(" ")[0],stage:a.stage,health:a.health,dead:a.dead,reserved:Boolean(a.reservedByProjectId)},{id:b.id,genus:speciesB.latin.split(" ")[0],stage:b.stage,health:b.health,dead:b.dead,reserved:Boolean(b.reservedByProjectId)});
+  const eligibility=assessCrossEligibility({id:a.id,genus:speciesA.latin.split(" ")[0],stage:a.stage,health:a.health,dead:a.dead,reserved:Boolean(a.reservedByProjectId)||(state.projectStarted&&state.analysisTargetSpecimenId===a.id)},{id:b.id,genus:speciesB.latin.split(" ")[0],stage:b.stage,health:b.health,dead:b.dead,reserved:Boolean(b.reservedByProjectId)||(state.projectStarted&&state.analysisTargetSpecimenId===b.id)});
   if (!eligibility.eligible) return result(state,false,eligibility.reason ?? "These parents cannot be crossed.");
   const rarityA=(getSpeciesEconomy(speciesA.id)?.rarity??speciesA.rarity) as RarityTier, rarityB=(getSpeciesEconomy(speciesB.id)?.rarity??speciesB.rarity) as RarityTier;
   const targeted=Boolean(targetTrait&&state.researchUnlocks.includes("inheritance-mapping"));
@@ -414,6 +414,7 @@ export function startMutationAnalysis(state: GameState,id: string): ActionResult
   if(state.projectStarted)return result(state,false,"Mutation Analysis is already in progress.");
   const specimen=state.specimens.find(s=>s.id===id);
   if(!specimen||specimen.dead||specimen.health<=0)return result(state,false,"Choose a living specimen for Mutation Analysis.");
+  if(specimen.reservedByProjectId)return result(state,false,"A specimen reserved for breeding cannot enter Mutation Analysis.");
   if(specimen.mutationAnalysisCompleted)return result(state,false,"Mutation Analysis can only be performed once per specimen.");
   if(state.cash<25)return result(state,false,"Not enough funds to start Mutation Analysis.");
   return result({...state,cash:state.cash-25,projectStarted:true,analysisTargetSpecimenId:id,analysisStartedDay:state.day},true,"Mutation Analysis started for "+specimen.nickname+".");
