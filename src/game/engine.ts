@@ -12,7 +12,7 @@ import { analyseGenetics, createMutation, createSpecimenGenetics, growVariegatio
 import { applyTraitTargeting, breedingDurationDays, breedingFailureChance, calculateBreedingCost, calculateTargetedBreedingCost, calculateTargetedFailureChance, inheritTraits, mutationOccurs, type BreedingProject, type TargetableTrait, RESEARCH_TREE, unlockResearch } from "./progression.ts";
 
 export type PropagationMethod = "cutting" | "division" | "corm" | "tissue-culture";
-export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "other";
+export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "treatment" | "other";
 export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number };
 export type FinancialStatus = "solvent" | "arrears";
 export type GameState = {
@@ -31,6 +31,7 @@ function ledgerCategory(message: string, amount: number): LedgerCategory {
   if (text.includes("research") || text.includes("analysis") || text.includes("observation") || text.includes("mutation")) return "research";
   if (text.includes("facility") || text.includes("upgrade") || text.includes("controller") || text.includes("workstation") || text.includes("bench")) return "facility";
   if (text.includes("training") || text.includes("staff")) return "staff";
+  if (text.includes("treatment") || text.includes("treated")) return "treatment";
   if (text.includes("sold")) return "plant-sale";
   if (text.includes("acquired")) return "plant-purchase";
   if (text.includes("operating cost") || text.includes("wage") || text.includes("overhead")) return "operating-cost";
@@ -182,6 +183,25 @@ export function setGreenhouseEnvironment(state: GameState, input: Partial<PlantE
   const environment={...state.greenhouseEnvironment,light:clamp(input.light,state.greenhouseEnvironment.light),nutrition:clamp(input.nutrition,state.greenhouseEnvironment.nutrition),humidity:clamp(input.humidity,state.greenhouseEnvironment.humidity),health:clamp(input.health,state.greenhouseEnvironment.health)};
   return result({...state,greenhouseEnvironment:environment},true,"Greenhouse environment updated.");
 }
+export type TreatmentTarget = "pests" | "disease" | "both";
+export function treatSpecimen(state: GameState, id: string, target: TreatmentTarget): ActionResult {
+  const specimen = state.specimens.find((item) => item.id === id);
+  if (!specimen) return result(state, false, "Specimen not found.");
+  if (specimen.dead || specimen.health <= 0) return result(state, false, "Dead specimens cannot be treated.");
+  const pestLoad = specimen.pestLoad ?? 0, diseaseLoad = specimen.diseaseLoad ?? 0;
+  if ((target === "pests" && pestLoad === 0) || (target === "disease" && diseaseLoad === 0) || (target === "both" && pestLoad === 0 && diseaseLoad === 0)) {
+    return result(state, false, "No matching pest or disease pressure is recorded for this specimen.");
+  }
+  const cost = target === "both" ? 15 : 8;
+  if (state.cash < cost) return result(state, false, "Not enough funds for plant treatment.");
+  const specimens = state.specimens.map((item) => item.id !== id ? item : {
+    ...item,
+    pestLoad: target === "disease" ? pestLoad : Math.max(0, pestLoad - 60),
+    diseaseLoad: target === "pests" ? diseaseLoad : Math.max(0, diseaseLoad - 60),
+  });
+  const label = target === "both" ? "Pest and disease treatment" : target === "pests" ? "Pest treatment" : "Disease treatment";
+  return result({ ...state, cash: state.cash - cost, specimens }, true, label + " applied to " + specimen.nickname + " for £" + cost + ".");
+}
 export function startMutationAnalysis(state: GameState,id: string): ActionResult {
   if(state.projectStarted)return result(state,false,"Mutation Analysis is already in progress.");
   const specimen=state.specimens.find(s=>s.id===id);
@@ -195,7 +215,17 @@ export function advanceGameDay(state: GameState): ActionResult {
   const notices:string[]=[];
   const specimens=state.specimens.map(s=>{
     if(s.dead||s.health<=0)return {...s,health:0,dead:true,value:0};
-    const random=createEventRandom(state.simulationSeed,"day:"+day+":specimen:"+s.id), health=calculateDailyHealth(s.health,environment.autoCare?Math.max(60,care):care), record=s.genetics??createSpecimenGenetics(s.variegation,random), env={...environment,health};
+    const random=createEventRandom(state.simulationSeed,"day:"+day+":specimen:"+s.id);
+    const pestRandom=createEventRandom(state.simulationSeed,"day:"+day+":pests:"+s.id);
+    const diseaseRandom=createEventRandom(state.simulationSeed,"day:"+day+":disease:"+s.id);
+    const pestRisk=environment.humidity<35?0.012:0.001;
+    const diseaseRisk=environment.humidity>88&&environment.nutrition<50?0.015:environment.humidity>94?0.005:0.0005;
+    const pestLoad=Math.min(100,(s.pestLoad??0)+(pestRandom()<pestRisk?10:0));
+    const diseaseLoad=Math.min(100,(s.diseaseLoad??0)+(diseaseRandom()<diseaseRisk?10:0));
+    const health=Math.max(0,calculateDailyHealth(s.health,environment.autoCare?Math.max(60,care):care)-Math.ceil(pestLoad/25)-Math.ceil(diseaseLoad/20));
+    const record=s.genetics??createSpecimenGenetics(s.variegation,random), env={...environment,health};
+    if(pestLoad>(s.pestLoad??0))notices.push("Possible pest activity detected on "+s.nickname+".");
+    if(diseaseLoad>(s.diseaseLoad??0))notices.push("Possible disease activity detected on "+s.nickname+".");
     const growth=growVariegation(record.genetics,env,s.variegation,random);let genetics:SpecimenGenetics={...record,environment:env,expression:growth.expression};let variegation=growth.expression;
     if(mutationOccurs("growth",env,Math.floor(state.research/50),state.analysisEquipmentLevel*.001,random)){
       const mutation=createMutation(random,{origin:"growth",tissueDistribution:"sectoral",originDay:day});mutation.detected=false;
@@ -207,7 +237,7 @@ export function advanceGameDay(state: GameState): ActionResult {
     const species=findSpecies(s.speciesId), suitability=calculateSpeciesSuitability(species.latin,species.difficulty,{...environment,health}),condition=suitability<45?1.5:suitability<65?1.2:suitability>=85?.85:1,speciesFactor=speciesGrowthDurationFactor(species.latin,species.difficulty);
     if(propagation){const progress=advancePropagationPhase(propagation,suitability<45?2:suitability<65?1:0,state.facilityLevels.propagationBench);propagation=progress.propagation;if(progress.transition==="cutting-rooting")location="Propagation Bench · Rooting";else if(progress.transition==="rooting-new-growth")location="Propagation Bench · New Growth";else if(progress.transition==="corm-sprouting")location="Corm Nursery · Sprouting";else if(progress.transition==="propagation-established"){stage="Juvenile";stageDays=0;location="Greenhouse · Establishing";}if(propagation?.phase==="Sprouting")stage="Juvenile";}
     else{const progress=advanceEstablishedGrowthStage(stage,stageDays,health,speciesFactor,condition);stage=progress.stage;stageDays=progress.stageDays;if(progress.transition)notices.push(s.nickname+" advanced to "+stage+".");}
-    const updated:Specimen={...s,health,dead:health<=0,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
+    const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
   });
   let projects=state.breedingProjects.map(p=>({...p}));
   projects=projects.map(p=>{
