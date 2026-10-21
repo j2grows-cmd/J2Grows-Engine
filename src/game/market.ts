@@ -16,23 +16,25 @@ function stableHash(value: string): number {
 }
 
 /** Deterministic supply/demand cycle; the same species and day always produce the same quote. */
-export function getMarketMultiplier(speciesId: string, rarity: RarityTier, day: number): number {
+export function getMarketMultiplier(speciesId: string, rarity: RarityTier, day: number, stockPressure = 0): number {
   const safeDay = Number.isFinite(day) ? Math.max(1, Math.floor(day)) : 1;
   const seed = stableHash(speciesId);
   const volatility = RARITY_VOLATILITY[rarity] ?? 0.1;
   const shortCycle = Math.sin(safeDay / 19 + seed * Math.PI * 2) * volatility;
   const longCycle = Math.sin(safeDay / 83 + seed * 7.3) * volatility * 0.55;
   const seasonal = Math.sin((safeDay % 365) / 365 * Math.PI * 2 + seed * 3) * 0.06;
-  return Math.min(1.45, Math.max(0.65, 1 + shortCycle + longCycle + seasonal));
+  const marketCycle = Math.min(1.45, Math.max(0.65, 1 + shortCycle + longCycle + seasonal));
+  const supplyDiscount = Math.min(0.25, Math.max(0, Number.isFinite(stockPressure) ? stockPressure : 0) * 0.025);
+  return Math.max(0.45, marketCycle - supplyDiscount);
 }
 
-export function getMarketPrice(basePrice: number, speciesId: string, rarity: RarityTier, day: number): number {
+export function getMarketPrice(basePrice: number, speciesId: string, rarity: RarityTier, day: number, stockPressure = 0): number {
   const safeBase = Number.isFinite(basePrice) ? Math.max(1, basePrice) : 1;
-  return Math.max(1, Math.round(safeBase * getMarketMultiplier(speciesId, rarity, day)));
+  return Math.max(1, Math.round(safeBase * getMarketMultiplier(speciesId, rarity, day, stockPressure)));
 }
 
 /** The nursery's conservative buyback offer includes a 25% trading spread. */
-export function getMarketOffer(estimatedValue: number, speciesId: string, rarity: RarityTier, day: number): number {
+export function getMarketOffer(estimatedValue: number, speciesId: string, rarity: RarityTier, day: number, stockPressure = 0): number {
   const safeValue = Number.isFinite(estimatedValue) ? Math.max(0, estimatedValue) : 0;
-  return Math.max(0, Math.round(safeValue * getMarketMultiplier(speciesId, rarity, day) * 0.75));
+  return Math.max(0, Math.round(safeValue * getMarketMultiplier(speciesId, rarity, day, stockPressure) * 0.75));
 }
