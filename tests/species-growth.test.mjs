@@ -28,10 +28,10 @@ test("missing or malformed catalogue care descriptions fall back to genus profil
 test("temperature, root-zone moisture, and photoperiod affect species suitability", () => {
   const base = { light: 62, humidity: 78, nutrition: 70, health: 100 };
   const optimal = calculateSpeciesSuitability("Alocasia × amazonica", "Moderate", {
-    ...base, temperature: 24, substrateMoisture: 62, lightHours: 12,
+    ...base, temperature: 24, substrateMoisture: 62, lightHours: 12, airflow: 45, substratePH: 6,
   });
   const stressful = calculateSpeciesSuitability("Alocasia × amazonica", "Moderate", {
-    ...base, temperature: 10, substrateMoisture: 5, lightHours: 2,
+    ...base, temperature: 10, substrateMoisture: 5, lightHours: 2, airflow: 5, substratePH: 9,
   });
   assert.ok(optimal > stressful);
 });
