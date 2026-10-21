@@ -19,6 +19,7 @@ test("legacy engine saves are normalized with finance defaults and an opening le
   delete legacy.ledger;
   delete legacy.financeArrears;
   delete legacy.financialStatus;
+  delete legacy.savedAt;
   const normalized = normalizeGameSave(legacy, 1234);
   assert.ok(normalized.state);
   assert.equal(normalized.state.cash, 275);
