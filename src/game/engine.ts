@@ -15,7 +15,7 @@ import { applyTraitTargeting, breedingDurationDays, breedingFailureChance, calcu
 
 export type PropagationMethod = "cutting" | "division" | "corm" | "tissue-culture";
 export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "treatment" | "debt" | "sales" | "other";
-export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number };
+export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number; cashImpact?: number };
 export type FinancialStatus = "solvent" | "arrears" | "insolvent";
 export type SalesChannel = "retail" | "wholesale" | "auction";
 export type CustomerOrder = { id: string; speciesId: string; quantity: number; unitPrice: number; channel: SalesChannel; createdDay: number; dueDay: number; status: "open" | "fulfilled" | "expired" };
@@ -85,14 +85,14 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
   if (ok && delta !== 0) {
     const entries: LedgerEntry[] = [...(state.ledger ?? [])];
     const category = ledgerCategory(message, delta);
-    entries.push({ id: state.simulationSeed + ":" + state.day + ":" + entries.length, day: state.day, category, description: message, amount: delta, balance: state.cash });
+    entries.push({ id: state.simulationSeed + ":" + state.day + ":" + entries.length, day: state.day, category, description: message, amount: delta, balance: state.cash, cashImpact: delta });
     let cash = state.cash;
     let financeArrears = state.financeArrears ?? 0;
     if (delta > 0 && financeArrears > 0) {
       const repayment = Math.min(delta, financeArrears);
       cash = Math.max(0, cash - repayment);
       financeArrears = Math.max(0, financeArrears - repayment);
-      entries.push({ id: state.simulationSeed + ":" + state.day + ":" + entries.length, day: state.day, category: "operating-cost", description: "Automatic repayment of outstanding operating-cost arrears", amount: -repayment, balance: cash });
+      entries.push({ id: state.simulationSeed + ":" + state.day + ":" + entries.length, day: state.day, category: "operating-cost", description: "Automatic repayment of outstanding operating-cost arrears", amount: -repayment, balance: cash, cashImpact: -repayment });
     }
     next = { ...state, cash, financeArrears, financialStatus: financeArrears > 0 ? "arrears" : "solvent", ledger: entries.slice(-MAX_LEDGER_ENTRIES) };
   }
@@ -375,9 +375,9 @@ export function liquidateAssets(state: GameState): ActionResult {
   cash -= debtPaid;
   const ledger = [...(state.ledger ?? [])];
   const day = state.day;
-  ledger.push({ id: state.simulationSeed + ":day:" + day + ":liquidation", day, category: "plant-sale", description: "Voluntary asset liquidation (" + eligible.length + " specimens)", amount: proceeds, balance: state.cash + proceeds });
-  if (arrearsPaid > 0) ledger.push({ id: state.simulationSeed + ":day:" + day + ":arrears-settlement", day, category: "operating-cost", description: "Liquidation proceeds applied to operating arrears", amount: -arrearsPaid, balance: state.cash + proceeds - arrearsPaid });
-  if (debtPaid > 0) ledger.push({ id: state.simulationSeed + ":day:" + day + ":debt-settlement", day, category: "debt", description: "Liquidation proceeds applied to loan balance", amount: -debtPaid, balance: cash });
+  ledger.push({ id: state.simulationSeed + ":day:" + day + ":liquidation", day, category: "plant-sale", description: "Voluntary asset liquidation (" + eligible.length + " specimens)", amount: proceeds, balance: state.cash + proceeds, cashImpact: proceeds });
+  if (arrearsPaid > 0) ledger.push({ id: state.simulationSeed + ":day:" + day + ":arrears-settlement", day, category: "operating-cost", description: "Liquidation proceeds applied to operating arrears", amount: -arrearsPaid, balance: state.cash + proceeds - arrearsPaid, cashImpact: -arrearsPaid });
+  if (debtPaid > 0) ledger.push({ id: state.simulationSeed + ":day:" + day + ":debt-settlement", day, category: "debt", description: "Liquidation proceeds applied to loan balance", amount: -debtPaid, balance: cash, cashImpact: -debtPaid });
   const financeArrears = Math.max(0, (state.financeArrears ?? 0) - arrearsPaid);
   const financeDebt = Math.max(0, (state.financeDebt ?? 0) - debtPaid);
   const financialStatus: FinancialStatus = financeArrears >= 100 && cash === 0 ? "insolvent" : financeArrears > 0 ? "arrears" : "solvent";
@@ -481,7 +481,7 @@ export function advanceGameDay(state: GameState): ActionResult {
     if((next.financeDebt ?? 0) > 0){
       const interest = Math.max(1, Math.ceil(next.financeDebt * LOAN_INTEREST_RATE_PER_WEEK));
       const balance = next.financeDebt + interest;
-      const entry: LedgerEntry = { id: state.simulationSeed + ":day:" + day + ":loan-interest", day, category: "debt", description: "Weekly loan interest accrued", amount: -interest, balance: next.cash };
+      const entry: LedgerEntry = { id: state.simulationSeed + ":day:" + day + ":loan-interest", day, category: "debt", description: "Weekly loan interest accrued", amount: -interest, balance: next.cash, cashImpact: 0 };
       next = { ...next, financeDebt: balance, ledger: [...(next.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
       notices.push("Loan interest accrued: £" + interest + ".");
     }
@@ -489,7 +489,7 @@ export function advanceGameDay(state: GameState): ActionResult {
       const paid = Math.min(next.cash, weeklyCost);
       const shortfall = weeklyCost - paid;
       const balance = Math.max(0, next.cash - paid);
-      const entry: LedgerEntry = { id: state.simulationSeed + ":day:" + day + ":overheads", day, category: "operating-cost", description: "Weekly staff and facility operating costs", amount: -weeklyCost, balance };
+      const entry: LedgerEntry = { id: state.simulationSeed + ":day:" + day + ":overheads", day, category: "operating-cost", description: "Weekly staff and facility operating costs", amount: -weeklyCost, balance, cashImpact: -paid };
       next = { ...next, cash: balance, financeArrears: (next.financeArrears ?? 0) + shortfall, financialStatus: (next.financeArrears ?? 0) >= 100 && balance === 0 ? "insolvent" : shortfall > 0 || (next.financeArrears ?? 0) > 0 ? "arrears" : "solvent", ledger: [...(next.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
       notices.push("Weekly operating costs: £" + weeklyCost + (shortfall > 0 ? "; £" + shortfall + " added to arrears." : "."));
     }
