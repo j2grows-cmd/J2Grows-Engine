@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS, orderSupplierStock, collectSupplierShipment } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -431,4 +431,30 @@ test("prestige cannot be triggered before the legacy score threshold", () => {
   assert.equal(result.ok, false);
   assert.equal(result.state.day, state.day);
   assert.equal(result.state.prestigeCount, 0);
+});
+
+
+test("global supplier orders charge freight, arrive on schedule, and add quarantined stock", () => {
+  const initial = createGameState("supplier-shipment");
+  const ordered = orderSupplierStock(initial, species[0].id, 2, "asia");
+  assert.equal(ordered.ok, true);
+  assert.equal(ordered.state.supplierShipments[0].status, "shipping");
+  assert.ok(ordered.state.cash < initial.cash);
+  let state = ordered.state;
+  for (let i = 0; i < 8; i++) state = advanceGameDay(state).state;
+  assert.equal(state.day, 9);
+  assert.equal(state.supplierShipments[0].status, "arrived");
+  const collected = collectSupplierShipment(state, state.supplierShipments[0].id);
+  assert.equal(collected.ok, true);
+  assert.equal(collected.state.specimens.length, 2);
+  assert.equal(collected.state.specimens[0].location, "Supplier quarantine · Southeast Asia");
+  assert.equal(collected.state.specimens[0].diseaseLoad, 12);
+  assert.equal(collected.state.supplierShipments[0].status, "collected");
+  assert.equal(collectSupplierShipment(collected.state, state.supplierShipments[0].id).ok, false);
+});
+
+test("supplier orders reject unsupported quantities and insufficient funds", () => {
+  const state = createGameState("supplier-guards");
+  assert.equal(orderSupplierStock(state, species[0].id, 6, "uk").ok, false);
+  assert.equal(orderSupplierStock({ ...state, cash: 1 }, species[0].id, 1, "americas").ok, false);
 });
