@@ -108,3 +108,13 @@
 .staff-role-card p{font-size:11px;line-height:1.6;color:var(--muted,#8c9684);min-height:34px;margin:0}
 .staff-role-card .secondary{margin-top:5px}
 @media(max-width:700px){.staff-hire-grid{grid-template-columns:1fr}}
+
+
+/* Persistent milestones and prestige */
+.achievement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:16px}
+.achievement{display:flex;flex-direction:column;gap:6px;min-height:72px;padding:12px;border:1px solid var(--line,#293026);border-radius:6px;background:#0e120c;opacity:.55}
+.achievement.earned{opacity:1;border-color:#7f9b5b88;background:linear-gradient(145deg,#202a18,#11160e)}
+.achievement b{font-size:11px;font-weight:600}
+.achievement small{font-size:10px;line-height:1.5;color:var(--muted,#8c9684)}
+@media(max-width:900px){.achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.achievement-grid{grid-template-columns:1fr}}
