@@ -12,18 +12,44 @@ import { analyseGenetics, createMutation, createSpecimenGenetics, growVariegatio
 import { applyTraitTargeting, breedingDurationDays, breedingFailureChance, calculateBreedingCost, calculateTargetedBreedingCost, calculateTargetedFailureChance, inheritTraits, mutationOccurs, type BreedingProject, type TargetableTrait, RESEARCH_TREE, unlockResearch } from "./progression.ts";
 
 export type PropagationMethod = "cutting" | "division" | "corm" | "tissue-culture";
+export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "other";
+export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number };
+export type FinancialStatus = "solvent" | "arrears";
 export type GameState = {
   version: 1; simulationSeed: string; specimens: Specimen[]; breedingProjects: BreedingProject[];
   cash: number; research: number; day: number; projectStarted: boolean;
   analysisTargetSpecimenId?: string; analysisStartedDay?: number; analysisEquipmentLevel: number;
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
   facilityLevels: FacilityLevels; staffState: StaffState;
+  ledger: LedgerEntry[]; financeArrears: number; financialStatus: FinancialStatus;
 };
 export type ActionResult = { state: GameState; ok: boolean; message: string; createdSpecimenIds?: string[] };
-const result = (state: GameState, ok: boolean, message: string, extra: Partial<ActionResult> = {}): ActionResult => ({ state, ok, message, ...extra });
+function ledgerCategory(message: string, amount: number): LedgerCategory {
+  const text = message.toLowerCase();
+  if (text.includes("propagation") || text.includes("corm") || text.includes("cutting") || text.includes("division") || text.includes("tissue culture")) return "propagation";
+  if (text.includes("breeding")) return "breeding";
+  if (text.includes("research") || text.includes("analysis") || text.includes("observation") || text.includes("mutation")) return "research";
+  if (text.includes("facility") || text.includes("upgrade") || text.includes("controller") || text.includes("workstation") || text.includes("bench")) return "facility";
+  if (text.includes("training") || text.includes("staff")) return "staff";
+  if (text.includes("sold")) return "plant-sale";
+  if (text.includes("acquired")) return "plant-purchase";
+  if (text.includes("operating cost") || text.includes("wage") || text.includes("overhead")) return "operating-cost";
+  return amount === 0 ? "other" : "other";
+}
+const MAX_LEDGER_ENTRIES = 500;
+const result = (previous: GameState, ok: boolean, message: string, extra: Partial<ActionResult> = {}): ActionResult => {
+  const next = extra.state ?? previous;
+  const delta = Math.round((next.cash - previous.cash) * 100) / 100;
+  let state = next;
+  if (ok && delta !== 0) {
+    const entry: LedgerEntry = { id: previous.simulationSeed + ":" + next.day + ":" + (previous.ledger?.length ?? 0), day: next.day, category: ledgerCategory(message, delta), description: message, amount: delta, balance: next.cash };
+    state = { ...next, ledger: [...(next.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
+  }
+  return { state, ok, message, ...extra };
+};
 
 export function createGameState(seed = "j2grows-new-game"): GameState {
-  return { version: 1, simulationSeed: seed, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE } };
+  return { version: 1, simulationSeed: seed, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financialStatus: "solvent" };
 }
 function valueOf(specimen: Specimen): number {
   const plant = findSpecies(specimen.speciesId);
