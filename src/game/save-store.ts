@@ -81,6 +81,9 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
     financeDebt: finite(value.financeDebt, 0, 0, 1_000_000_000),
     customerOrders,
     reputation: finite(value.reputation, 50, 0, 100),
+    achievements: Array.isArray(value.achievements) ? [...new Set(value.achievements.filter((item: unknown): item is string => typeof item === "string"))] : [],
+    prestigePoints: Math.floor(finite(value.prestigePoints, 0, 0, 1_000_000)),
+    prestigeCount: Math.floor(finite(value.prestigeCount, 0, 0, 1_000_000)),
     financialStatus,
   } as unknown as GameState;
   return { state, repaired };
