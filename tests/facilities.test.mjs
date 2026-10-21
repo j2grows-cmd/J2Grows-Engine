@@ -25,6 +25,8 @@ test("environmental controller improves growing conditions without exceeding bou
   assert.equal(improved.humidity, 100);
   assert.equal(base.light, 70);
   assert.equal(applyEnvironmentalController(base, 0).light, 70);
+  assert.equal(applyEnvironmentalController(base, 2, 0).light, 70);
+  assert.equal(applyEnvironmentalController(base, 2, 50).light, 75);
 });
 
 test("propagation bench shortens each phase but never makes it instantaneous", () => {
