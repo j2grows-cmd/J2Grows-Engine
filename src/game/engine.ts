@@ -9,6 +9,7 @@ import { advanceStaffDay, canStartStaffTraining, DEFAULT_STAFF_STATE, effectiveS
 import { canCreateOffset } from "./propagation-eligibility.ts";
 import { getSpeciesEconomy, STARTING_CASH, type RarityTier } from "./catalog.ts";
 import { getMarketOffer, getMarketPrice } from "./market.ts";
+import { quoteSupplierShipment, SUPPLIER_REGIONS, type SupplierRegion, type SupplierShipment } from "./suppliers.ts";
 import { analyseGenetics, createMutation, createSpecimenGenetics, growVariegation, observePlant, calculateSpecimenValue, DEFAULT_ENVIRONMENT, type PlantEnvironment, type SpecimenGenetics } from "./genetics.ts";
 import { applyTraitTargeting, breedingDurationDays, breedingFailureChance, calculateBreedingCost, calculateTargetedBreedingCost, calculateTargetedFailureChance, inheritTraits, mutationOccurs, type BreedingProject, type TargetableTrait, RESEARCH_TREE, unlockResearch } from "./progression.ts";
 
@@ -25,7 +26,7 @@ export type GameState = {
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
   facilityLevels: FacilityLevels; facilityCondition: number; staffState: StaffState;
   ledger: LedgerEntry[]; financeArrears: number; financeDebt: number; financialStatus: FinancialStatus;
-  customerOrders: CustomerOrder[]; reputation: number; achievements: string[]; prestigePoints: number; prestigeCount: number;
+  customerOrders: CustomerOrder[]; supplierShipments: SupplierShipment[]; reputation: number; achievements: string[]; prestigePoints: number; prestigeCount: number;
 };
 export type ActionResult = { state: GameState; ok: boolean; message: string; createdSpecimenIds?: string[] };
 function ledgerCategory(message: string, amount: number): LedgerCategory {
@@ -99,7 +100,7 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
   return { state: next, ok, message, ...extra };
 };
 export function createGameState(seed = "j2grows-new-game"): GameState {
-  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), facilityCondition: 100, staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent", customerOrders: [], reputation: 50, achievements: [], prestigePoints: 0, prestigeCount: 0 };
+  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), facilityCondition: 100, staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent", customerOrders: [], supplierShipments: [], reputation: 50, achievements: [], prestigePoints: 0, prestigeCount: 0 };
 }
 function valueOf(specimen: Specimen): number {
   const plant = findSpecies(specimen.speciesId);
@@ -267,6 +268,34 @@ export function setGreenhouseEnvironment(state: GameState, input: Partial<PlantE
   const environment={...state.greenhouseEnvironment,light:clamp(input.light,state.greenhouseEnvironment.light),nutrition:clamp(input.nutrition,state.greenhouseEnvironment.nutrition),humidity:clamp(input.humidity,state.greenhouseEnvironment.humidity),health:clamp(input.health,state.greenhouseEnvironment.health)};
   return result({...state,greenhouseEnvironment:environment},true,"Greenhouse environment updated.");
 }
+export function orderSupplierStock(state: GameState, speciesId: string, quantity: number, region: SupplierRegion): ActionResult {
+  const plant = findSpecies(speciesId);
+  if (!plant) return result(state, false, "Species not found in the nursery catalogue.");
+  const economy = getSpeciesEconomy(plant.id) ?? getSpeciesEconomy(plant.name);
+  const basePrice = economy?.basePrice ?? plant.basePrice ?? 15;
+  const quote = quoteSupplierShipment(basePrice, region, quantity);
+  if (!quote) return result(state, false, "Choose a valid supplier region and a quantity between one and five.");
+  if (state.cash < quote.totalCost) return result(state, false, "Not enough funds for the supplier order and freight.");
+  const shipment: SupplierShipment = { id: state.simulationSeed + "-shipment-" + state.day + "-" + (state.supplierShipments?.length ?? 0), speciesId: plant.id, quantity, region, unitCost: quote.unitCost, freight: quote.freight, orderedDay: state.day, arrivesDay: state.day + quote.arrivesInDays, status: "shipping" };
+  return result({ ...state, cash: state.cash - quote.totalCost, supplierShipments: [...(state.supplierShipments ?? []), shipment].slice(-100) }, true, "Supplier order placed with " + SUPPLIER_REGIONS[region].label + ": " + quantity + " × " + plant.name + ", arriving on day " + shipment.arrivesDay + ".");
+}
+export function collectSupplierShipment(state: GameState, shipmentId: string): ActionResult {
+  const shipment = state.supplierShipments.find((item) => item.id === shipmentId);
+  if (!shipment || shipment.status !== "arrived") return result(state, false, "This supplier shipment has not arrived or was already collected.");
+  const plant = findSpecies(shipment.speciesId);
+  const region = SUPPLIER_REGIONS[shipment.region];
+  const used = new Set(state.specimens.map((item) => item.id));
+  const children: Specimen[] = [];
+  for (let index = 0; index < shipment.quantity; index++) {
+    const id = createUniqueSpecimenId(used); used.add(id);
+    const random = createEventRandom(state.simulationSeed, "shipment:" + shipment.id + ":" + index);
+    const specimen: Specimen = { id, speciesId: plant.id, nickname: plant.name + " · Import " + (index + 1), location: "Supplier quarantine · " + region.label, health: 85, stage: "Juvenile", stageDays: 0, value: 0, purchasePrice: shipment.unitCost + shipment.freight / shipment.quantity, protected: false, variegation: 0, discovered: false, pestLoad: region.biosecurityLoad, diseaseLoad: region.biosecurityLoad, genetics: createSpecimenGenetics(0, random) };
+    specimen.value = valueOf(specimen);
+    children.push(specimen);
+  }
+  const shipments = state.supplierShipments.map((item) => item.id === shipmentId ? { ...item, status: "collected" as const } : item);
+  return result({ ...state, specimens: [...state.specimens, ...children], supplierShipments: shipments }, true, "Supplier shipment collected: " + children.length + " " + plant.name + " specimen(s) added to quarantine.", { createdSpecimenIds: children.map((item) => item.id) });
+}
 export function fulfillCustomerOrder(state: GameState, orderId: string): ActionResult {
   const order = state.customerOrders.find((item) => item.id === orderId);
   if (!order || order.status !== "open") return result(state, false, "Customer order is not open.");
@@ -426,7 +455,8 @@ export function advanceGameDay(state: GameState): ActionResult {
   });
   const finished=new Set(projects.filter(p=>p.status!=="active").map(p=>p.id));
   const unreserved=specimens.map(s=>s.reservedByProjectId&&finished.has(s.reservedByProjectId)?({...s,reservedByProjectId:undefined}):s);
-  let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff,customerOrders:[...(state.customerOrders??[])],reputation:state.reputation??50,facilityCondition:Math.max(0,Math.min(100,state.facilityCondition??100))};
+  let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff,customerOrders:[...(state.customerOrders??[])],supplierShipments:(state.supplierShipments??[]).map((shipment)=>shipment.status==="shipping"&&day>=shipment.arrivesDay?{...shipment,status:"arrived" as const}:shipment),reputation:state.reputation??50,facilityCondition:Math.max(0,Math.min(100,state.facilityCondition??100))};
+  for(const shipment of next.supplierShipments){if(shipment.status==="arrived"&&state.supplierShipments.find((item)=>item.id===shipment.id)?.status==="shipping")notices.push("Supplier shipment arrived from "+SUPPLIER_REGIONS[shipment.region].label+"; collect it from the nursery.");}
   if(day % 7 === 0){
     const installedLevels = state.facilityLevels.propagationBench + state.facilityLevels.environmentalController + state.analysisEquipmentLevel;
     if(installedLevels > 0){
