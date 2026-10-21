@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 
 test("new game is headless and starts with the intended economy", () => {
@@ -187,4 +187,43 @@ test("mutation analysis cancels without reward when its target dies", () => {
   assert.equal(result.state.research, 0);
   assert.equal(result.state.specimens.find((specimen) => specimen.id === id).mutationAnalysisCompleted, undefined);
   assert.match(result.message, /cancelled/i);
+});
+
+
+test("dead specimens cannot be propagated or sold for a forged positive value", () => {
+  const bought = purchasePlant(createGameState("dead-specimen-actions"), species[0] ?? findSpecies("alocasia-polly"));
+  const id = bought.state.specimens[0].id;
+  const deadState = {
+    ...bought.state,
+    specimens: bought.state.specimens.map((specimen) =>
+      specimen.id === id ? { ...specimen, health: 0, dead: true, value: 500 } : specimen
+    ),
+  };
+  const propagation = propagatePlant(deadState, id, "tissue-culture");
+  assert.equal(propagation.ok, false);
+  assert.equal(propagation.state.cash, deadState.cash);
+  const sale = sellPlant(deadState, id);
+  assert.equal(sale.ok, false);
+  assert.equal(sale.state.cash, deadState.cash);
+  assert.match(sale.message, /dead specimens/i);
+});
+
+test("an Alocasia can only yield one corm per in-game year", () => {
+  const alocasia = species.find((candidate) => candidate.latin.split(" ")[0].toLowerCase() === "alocasia");
+  assert.ok(alocasia, "test catalogue should include an Alocasia");
+  const bought = purchasePlant(createGameState("annual-corm-limit"), alocasia);
+  const parent = bought.state.specimens[0];
+  const mature = {
+    ...bought.state,
+    specimens: bought.state.specimens.map((specimen) =>
+      specimen.id === parent.id ? { ...specimen, stage: "Mature", health: 100 } : specimen
+    ),
+  };
+  const first = propagatePlant(mature, parent.id, "corm");
+  assert.equal(first.ok, true);
+  assert.equal(first.state.specimens.find((specimen) => specimen.id === parent.id).lastCormHarvestYear, 0);
+  const second = propagatePlant(first.state, parent.id, "corm");
+  assert.equal(second.ok, false);
+  assert.match(second.message, /already yielded a corm this year/i);
+  assert.equal(second.state.specimens.length, first.state.specimens.length);
 });
