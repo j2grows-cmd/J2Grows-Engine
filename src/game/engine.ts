@@ -205,7 +205,7 @@ export function startBreeding(state: GameState, parentAId: string, parentBId: st
   const targeted=Boolean(targetTrait&&state.researchUnlocks.includes("inheritance-mapping"));
   const cost=calculateTargetedBreedingCost(calculateBreedingCost(rarityA,rarityB,1,state.researchUnlocks.includes("selective-breeding")?10:0),targeted);
   if(state.cash<cost)return result(state,false,"Not enough funds for breeding.");
-  const identity=createBreedingIdentity(state.day,state.breedingProjects.length+1,a.id,b.id),condition=(state.greenhouseEnvironment.light+state.greenhouseEnvironment.nutrition+state.greenhouseEnvironment.humidity+a.health+b.health)/5;
+  const identity=createBreedingIdentity(state.day,state.breedingProjects.length+1,a.id,b.id),condition=Math.min(100,(state.greenhouseEnvironment.light+state.greenhouseEnvironment.nutrition+state.greenhouseEnvironment.humidity+a.health+b.health)/5+(state.researchUnlocks.includes("controlled-environment")?10:0));
   const project:BreedingProject={id:identity.projectId,parentAId:a.id,parentBId:b.id,startedDay:state.day,completesOnDay:state.day+breedingDurationDays(5,state.researchUnlocks.includes("selective-breeding")?15:0),cost,status:"active",failureChance:calculateTargetedFailureChance(breedingFailureChance(state.researchUnlocks.includes("selective-breeding")?3:0,condition),targeted),lineId:identity.lineId,targetTrait:targeted?targetTrait:undefined};
   return result({...state,cash:state.cash-cost,breedingProjects:[...state.breedingProjects,project],specimens:state.specimens.map(s=>s.id===a.id||s.id===b.id?{...s,reservedByProjectId:project.id}:s)},true,"Breeding project started; both parents are reserved.");
 }
