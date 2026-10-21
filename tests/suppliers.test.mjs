@@ -7,6 +7,7 @@ test("supplier quotes apply region-specific pricing, freight, and bounded transi
   const asia = quoteSupplierShipment(20, "asia", 2);
   assert.ok(local && asia);
   assert.equal(local.arrivesInDays, SUPPLIER_REGIONS.uk.transitDays);
+  assert.ok(SUPPLIER_REGIONS.uk.reliability > SUPPLIER_REGIONS.asia.reliability);
   assert.equal(asia.arrivesInDays, SUPPLIER_REGIONS.asia.transitDays);
   assert.ok(asia.unitCost < local.unitCost);
   assert.ok(asia.freight > 0);
