@@ -71,6 +71,7 @@ export function normalizeSpecimens(value: unknown): SpecimenRecovery {
       health, stage: raw.stage as Specimen["stage"], value: valueAmount, protected: raw.protected, variegation,
       ...(typeof raw.pestLoad === "number" && Number.isFinite(raw.pestLoad) ? { pestLoad: finite(raw.pestLoad, 0, 0, 100) } : {}),
       ...(typeof raw.diseaseLoad === "number" && Number.isFinite(raw.diseaseLoad) ? { diseaseLoad: finite(raw.diseaseLoad, 0, 0, 100) } : {}),
+      ...(typeof raw.quarantineUntilDay === "number" && Number.isFinite(raw.quarantineUntilDay) ? { quarantineUntilDay: finite(raw.quarantineUntilDay, 1, 1, 1_000_000_000, true) } : {}),
       ...(typeof raw.dead === "boolean" ? { dead: raw.dead } : {}),
       ...(typeof raw.discovered === "boolean" ? { discovered: raw.discovered } : {}),
       ...(typeof raw.geneticLineId === "string" ? { geneticLineId: raw.geneticLineId } : {}),
