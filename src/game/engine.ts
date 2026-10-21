@@ -290,7 +290,7 @@ export function beginStaffTraining(state: GameState): ActionResult {
 }
 export function setGreenhouseEnvironment(state: GameState, input: Partial<PlantEnvironment>): ActionResult {
   const clamp=(v:unknown,f:number)=>typeof v==="number"&&Number.isFinite(v)?Math.max(0,Math.min(100,v)):f;
-  const environment={...state.greenhouseEnvironment,light:clamp(input.light,state.greenhouseEnvironment.light),nutrition:clamp(input.nutrition,state.greenhouseEnvironment.nutrition),humidity:clamp(input.humidity,state.greenhouseEnvironment.humidity),health:clamp(input.health,state.greenhouseEnvironment.health)};
+  const environment={...state.greenhouseEnvironment,light:clamp(input.light,state.greenhouseEnvironment.light),nutrition:clamp(input.nutrition,state.greenhouseEnvironment.nutrition),humidity:clamp(input.humidity,state.greenhouseEnvironment.humidity),health:clamp(input.health,state.greenhouseEnvironment.health),temperature:typeof input.temperature==="number"&&Number.isFinite(input.temperature)?Math.max(10,Math.min(35,input.temperature)):(state.greenhouseEnvironment.temperature??24),substrateMoisture:clamp(input.substrateMoisture,state.greenhouseEnvironment.substrateMoisture??55),lightHours:typeof input.lightHours==="number"&&Number.isFinite(input.lightHours)?Math.max(0,Math.min(24,input.lightHours)):(state.greenhouseEnvironment.lightHours??12)};
   return result({...state,greenhouseEnvironment:environment},true,"Greenhouse environment updated.");
 }
 export function orderSupplierStock(state: GameState, speciesId: string, quantity: number, region: SupplierRegion): ActionResult {
@@ -461,8 +461,8 @@ export function advanceGameDay(state: GameState): ActionResult {
     const diseaseNeighbours=Math.max(0,(locationDiseasePressure.get(s.location)??0)-((s.diseaseLoad??0)>=30?1:0));
     const pestSpread=1+Math.min(2,pestNeighbours*0.25);
     const diseaseSpread=1+Math.min(2,diseaseNeighbours*0.3);
-    const pestRisk=(environment.humidity<35?0.012:0.001)*maintenanceFactor*pestSpread;
-    const diseaseRisk=(environment.humidity>88&&environment.nutrition<50?0.015:environment.humidity>94?0.005:0.0005)*maintenanceFactor*diseaseSpread;
+    const pestRisk=(environment.humidity<35||((environment.substrateMoisture??55)<20)?0.012:0.001)*maintenanceFactor*pestSpread;
+    const diseaseRisk=(environment.humidity>88&&environment.nutrition<50?0.015:environment.humidity>94||(environment.substrateMoisture??55)>90?0.005:0.0005)*maintenanceFactor*diseaseSpread;
     const pestLoad=Math.min(100,(s.pestLoad??0)+(pestRandom()<pestRisk?10:0));
     const diseaseLoad=Math.min(100,(s.diseaseLoad??0)+(diseaseRandom()<diseaseRisk?10:0));
     const health=Math.max(0,calculateDailyHealth(s.health,environment.autoCare?Math.max(60,care):care)-Math.ceil(pestLoad/25)-Math.ceil(diseaseLoad/20));
