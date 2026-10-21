@@ -127,7 +127,7 @@ export function normalizeManualSaveSlots(value: unknown): Record<string, unknown
         savedAt: finite(candidate.savedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
         researchUnlocks: Array.isArray(candidate.researchUnlocks) ? candidate.researchUnlocks.filter((item: unknown): item is string => typeof item === "string") : [],
         analysisEquipmentLevel: finite(candidate.analysisEquipmentLevel, 0, 0, 3, true),
-        greenhouseEnvironment: { light: envValue("light", 65), nutrition: envValue("nutrition", 65), humidity: envValue("humidity", 65), health: envValue("health", 100) },
+        greenhouseEnvironment: { light: envValue("light", 65), nutrition: envValue("nutrition", 65), humidity: envValue("humidity", 65), health: envValue("health", 100), temperature: finite(env.temperature, 24, 10, 35), substrateMoisture: envValue("substrateMoisture", 55), lightHours: finite(env.lightHours, 12, 0, 24) },
         analysisTargetSpecimenId: typeof candidate.analysisTargetSpecimenId === "string" && recovered.specimens.some((item) => item.id === candidate.analysisTargetSpecimenId) ? candidate.analysisTargetSpecimenId : undefined,
         analysisStartedDay: typeof candidate.analysisStartedDay === "number" && Number.isFinite(candidate.analysisStartedDay) ? finite(candidate.analysisStartedDay, 1, 1, 1_000_000_000, true) : undefined,
         projectStarted: Boolean(candidate.projectStarted && typeof candidate.analysisTargetSpecimenId === "string" && recovered.specimens.some((item) => item.id === candidate.analysisTargetSpecimenId) && typeof candidate.analysisStartedDay === "number" && Number.isFinite(candidate.analysisStartedDay)),
