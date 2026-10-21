@@ -41,8 +41,9 @@ export function canPurchaseFacilityUpgrade(name: string, levels: FacilityLevels,
   return cost !== null && Number.isFinite(cash) && cash >= cost;
 }
 
-export function applyEnvironmentalController(environment: PlantEnvironment, level: number): PlantEnvironment {
-  const bonus = clampLevel(level) * 5;
+export function applyEnvironmentalController(environment: PlantEnvironment, level: number, condition = 100): PlantEnvironment {
+  const reliability = Number.isFinite(condition) ? Math.max(0, Math.min(100, condition)) / 100 : 1;
+  const bonus = clampLevel(level) * 5 * reliability;
   const improve = (value: number) => Math.max(0, Math.min(100, value + bonus));
   return { ...environment, light: improve(environment.light), nutrition: improve(environment.nutrition), humidity: improve(environment.humidity) };
 }
