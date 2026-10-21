@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
+import { getMarketOffer } from "../src/game/market.ts";
 
 test("new game is headless and starts with the intended economy", () => {
   const state = createGameState("test-seed");
@@ -294,7 +295,7 @@ test("voluntary liquidation sells eligible assets and settles arrears before loa
   assert.equal(liquidated.state.specimens.length, 0);
   assert.equal(liquidated.state.financeArrears, 0);
   assert.equal(liquidated.state.financeDebt, 0);
-  assert.equal(liquidated.state.cash, 35);
+  assert.equal(liquidated.state.cash, getMarketOffer(50, species[0].id, species[0].rarity, state.day) - 15);
   assert.equal(liquidated.state.financialStatus, "solvent");
 });
 
