@@ -99,6 +99,10 @@ test("greenhouse controls clamp values to the supported 0–100 range", () => {
   assert.equal(changed.state.greenhouseEnvironment.light, 100);
   assert.equal(changed.state.greenhouseEnvironment.humidity, 0);
   assert.equal(changed.state.greenhouseEnvironment.nutrition, initial.greenhouseEnvironment.nutrition);
+  const extended = setGreenhouseEnvironment(initial, { temperature: 100, substrateMoisture: -10, lightHours: 30 });
+  assert.equal(extended.state.greenhouseEnvironment.temperature, 35);
+  assert.equal(extended.state.greenhouseEnvironment.substrateMoisture, 0);
+  assert.equal(extended.state.greenhouseEnvironment.lightHours, 24);
 });
 
 test("staff training charges once and refuses a second concurrent course", () => {
