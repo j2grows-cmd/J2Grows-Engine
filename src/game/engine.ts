@@ -394,7 +394,7 @@ export function prestigeStudio(state: GameState): ActionResult {
 }
 export function liquidateAssets(state: GameState): ActionResult {
   if ((state.financeArrears ?? 0) <= 0 && (state.financeDebt ?? 0) <= 0) return result(state, false, "Voluntary liquidation is only available while financial obligations remain.");
-  const eligible = state.specimens.filter((item) => !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === item.id));
+  const eligible = state.specimens.filter((item) => !item.dead && item.health > 0 && !item.location.startsWith("Supplier quarantine") && !item.protected && !item.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === item.id));
   if (eligible.length === 0) return result(state, false, "No unprotected, unreserved living specimens are available to liquidate.");
   const proceeds = eligible.reduce((sum, item) => { const plant = findSpecies(item.speciesId); const economy = getSpeciesEconomy(plant.id) ?? getSpeciesEconomy(plant.name); const stockPressure = Math.max(0, eligible.filter((candidate) => candidate.speciesId === plant.id).length - 1); return sum + getMarketOffer(item.value, plant.id, (economy?.rarity ?? plant.rarity) as RarityTier, state.day, stockPressure); }, 0);
   let cash = state.cash + proceeds;
