@@ -44,6 +44,7 @@ export function purchasePlant(state: GameState, plant: Species): ActionResult {
 export function sellPlant(state: GameState, id: string): ActionResult {
   const specimen = state.specimens.find(s => s.id === id);
   if (!specimen) return result(state, false, "Specimen not found.");
+  if (specimen.dead || specimen.health <= 0) return result(state, false, "Dead specimens have no sale value.");
   if (specimen.protected) return result(state, false, "Remove specimen protection before selling.");
   if (specimen.reservedByProjectId || (state.projectStarted && state.analysisTargetSpecimenId === id)) return result(state, false, "This specimen is reserved by an active project.");
   return result({ ...state, cash: state.cash + specimen.value, specimens: state.specimens.filter(s => s.id !== id) }, true, specimen.nickname + " sold for £" + specimen.value + ".");
