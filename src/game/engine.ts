@@ -286,7 +286,10 @@ export function orderSupplierStock(state: GameState, speciesId: string, quantity
   const quote = quoteSupplierShipment(marketPrice, region, quantity);
   if (!quote) return result(state, false, "Choose a valid supplier region and a quantity between one and five.");
   if (state.cash < quote.totalCost) return result(state, false, "Not enough funds for the supplier order and freight.");
-  const shipment: SupplierShipment = { id: state.simulationSeed + "-shipment-" + state.day + "-" + (state.supplierShipments?.length ?? 0), speciesId: plant.id, quantity, region, unitCost: quote.unitCost, freight: quote.freight, orderedDay: state.day, arrivesDay: state.day + quote.arrivesInDays, status: "shipping" };
+  const id = state.simulationSeed + "-shipment-" + state.day + "-" + (state.supplierShipments?.length ?? 0);
+  const supplierRandom = createEventRandom(state.simulationSeed, "supplier-delay:" + id);
+  const delayDays = supplierRandom() < 1 - SUPPLIER_REGIONS[region].reliability ? 2 + Math.floor(supplierRandom() * 4) : 0;
+  const shipment: SupplierShipment = { id, speciesId: plant.id, quantity, region, unitCost: quote.unitCost, freight: quote.freight, orderedDay: state.day, arrivesDay: state.day + quote.arrivesInDays + delayDays, delayDays, status: "shipping" };
   return result({ ...state, cash: state.cash - quote.totalCost, supplierShipments: [...(state.supplierShipments ?? []), shipment].slice(-100) }, true, "Supplier order placed with " + SUPPLIER_REGIONS[region].label + ": " + quantity + " × " + plant.name + ", arriving on day " + shipment.arrivesDay + ".");
 }
 export function collectSupplierShipment(state: GameState, shipmentId: string): ActionResult {
