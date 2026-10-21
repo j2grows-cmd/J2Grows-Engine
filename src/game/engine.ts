@@ -281,7 +281,8 @@ export function orderSupplierStock(state: GameState, speciesId: string, quantity
   if (!plant) return result(state, false, "Species not found in the nursery catalogue.");
   const economy = getSpeciesEconomy(plant.id) ?? getSpeciesEconomy(plant.name);
   const basePrice = economy?.basePrice ?? plant.basePrice ?? 15;
-  const quote = quoteSupplierShipment(basePrice, region, quantity);
+  const marketPrice = getMarketPrice(basePrice, plant.id, (economy?.rarity ?? plant.rarity) as RarityTier, state.day);
+  const quote = quoteSupplierShipment(marketPrice, region, quantity);
   if (!quote) return result(state, false, "Choose a valid supplier region and a quantity between one and five.");
   if (state.cash < quote.totalCost) return result(state, false, "Not enough funds for the supplier order and freight.");
   const shipment: SupplierShipment = { id: state.simulationSeed + "-shipment-" + state.day + "-" + (state.supplierShipments?.length ?? 0), speciesId: plant.id, quantity, region, unitCost: quote.unitCost, freight: quote.freight, orderedDay: state.day, arrivesDay: state.day + quote.arrivesInDays, status: "shipping" };
