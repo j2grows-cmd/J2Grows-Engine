@@ -34,6 +34,7 @@ test("legacy engine saves are normalized with finance defaults and an opening le
 test("save normalization rejects malformed specimen and unsupported game-state versions", () => {
   assert.equal(normalizeGameSave(null).state, null);
   assert.equal(normalizeGameSave({ ...createGameState(), version: 99 }).state, null);
+  assert.equal(normalizeGameSave({ ...createGameState(), saveFormatVersion: 99 }).state, null);
   const malformed = { ...createGameState(), specimens: [{ id: "broken" }] };
   assert.equal(normalizeGameSave(malformed).state, null);
 });
