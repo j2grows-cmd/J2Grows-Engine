@@ -56,7 +56,7 @@ export const ACHIEVEMENTS: ReadonlyArray<{ id: string; label: string; descriptio
   { id: "first-facility", label: "Better Infrastructure", description: "Upgrade a facility." },
   { id: "research-100", label: "Research Milestone", description: "Accumulate 100 research points." },
   { id: "first-corm", label: "Corm Collector", description: "Successfully harvest a corm." },
-  { id: "first-batch", label: "Batch Scientist", description: "Complete a multi-cross breeding batch." },
+  { id: "first-batch", label: "Batch Scientist", description: "Start at least two simultaneous breeding projects." },
   { id: "first-prestige", label: "Legacy Studio", description: "Prestige your studio for the first time." },
 ];
 function earnedAchievements(state: GameState): string[] {
