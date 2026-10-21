@@ -482,8 +482,9 @@ export function advanceGameDay(state: GameState): ActionResult {
     const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,pestDiagnosed:Boolean(s.pestDiagnosed||diagnosisExpertise),diseaseDiagnosed:Boolean(s.diseaseDiagnosed||diagnosisExpertise),quarantineUntilDay,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
   });
   const salvageIds = new Set(specimens.map((specimen) => specimen.id));
+  const previousById = new Map(state.specimens.map((specimen) => [specimen.id, specimen]));
   for (const specimen of [...specimens]) {
-    const previous = state.specimens.find((item) => item.id === specimen.id);
+    const previous = previousById.get(specimen.id);
     if (!specimen.dead || !previous || previous.dead || previous.health <= 0) continue;
     const plant = findSpecies(specimen.speciesId);
     const genus = plant.latin.split(" ")[0].toLowerCase();
