@@ -115,8 +115,8 @@ The following staged foundations have now been committed directly to `main`:
 ### Still outstanding before calling the full design complete
 
 - True long-form species-specific biology with substrate/moisture, temperature, airflow, watering schedules, and expertise-gated treatment diagnosis.
-- Disease/pest transmission between neighbouring specimens and a richer quarantine workflow.
-- Supplier reputation, customs/import compliance, variable supplier reliability and payment terms.
+- More granular spatial pest/disease transmission beyond shared-location pressure, plus expertise-gated diagnosis.
+- Supplier reputation, customs/import compliance, supplier payment terms, and larger-scale supplier contracts.
 - A deeper multi-product nursery inventory, competitor supply/demand, auction clearing, wholesale contracts, and licensing.
 - More complete staffing schedules, specialisms, workload, recruitment history, and automation maintenance failures.
 - A unified, fully versioned migration path for every historic save schema; current live-save normalization is integrated, while the older separate schema normalizer still needs reconciliation.
