@@ -114,7 +114,7 @@ export function observeSpecimen(state: GameState, id: string): ActionResult {
   const genetics = observePlant(record, specimen.variegation, state.researchUnlocks.includes("mutation-screening") && state.analysisEquipmentLevel > 0);
   const updated = { ...specimen, genetics, lastObservedDay: state.day, discovered: Boolean(specimen.discovered || genetics.research.mutations.some(m => m.detected)) };
   updated.value = valueOf(updated);
-  const researchGain = 2 + Math.min(3, state.staffState.employees.filter((employee) => employee.role === "research-technician" && employee.morale >= 20).length);
+  const researchGain = 2 + (state.researchUnlocks.includes("field-notes") ? 1 : 0) + (state.researchUnlocks.includes("genetic-baseline") ? 1 : 0) + Math.min(3, state.staffState.employees.filter((employee) => employee.role === "research-technician" && employee.morale >= 20).length);
   return result({ ...state, research: state.research + researchGain, specimens: state.specimens.map(s => s.id === id ? updated : s) }, true, "Observation recorded for " + specimen.nickname + " (" + researchGain + " research points).");
 }
 export function analyseSpecimen(state: GameState, id: string): ActionResult {
@@ -173,6 +173,20 @@ export function startBreeding(state: GameState, parentAId: string, parentBId: st
   const identity=createBreedingIdentity(state.day,state.breedingProjects.length+1,a.id,b.id),condition=(state.greenhouseEnvironment.light+state.greenhouseEnvironment.nutrition+state.greenhouseEnvironment.humidity+a.health+b.health)/5;
   const project:BreedingProject={id:identity.projectId,parentAId:a.id,parentBId:b.id,startedDay:state.day,completesOnDay:state.day+breedingDurationDays(5,state.researchUnlocks.includes("selective-breeding")?15:0),cost,status:"active",failureChance:calculateTargetedFailureChance(breedingFailureChance(state.researchUnlocks.includes("selective-breeding")?3:0,condition),targeted),lineId:identity.lineId,targetTrait:targeted?targetTrait:undefined};
   return result({...state,cash:state.cash-cost,breedingProjects:[...state.breedingProjects,project],specimens:state.specimens.map(s=>s.id===a.id||s.id===b.id?{...s,reservedByProjectId:project.id}:s)},true,"Breeding project started; both parents are reserved.");
+}
+export function startBatchBreeding(state: GameState, pairs: Array<[string, string]>): ActionResult {
+  if (!state.researchUnlocks.includes("batch-breeding")) return result(state, false, "Unlock Batch Breeding research before starting a batch.");
+  if (!Array.isArray(pairs) || pairs.length < 2 || pairs.length > 5) return result(state, false, "A batch must contain between two and five crosses.");
+  const used = new Set<string>();
+  let next = state;
+  for (const pair of pairs) {
+    if (!Array.isArray(pair) || pair.length !== 2 || pair[0] === pair[1] || used.has(pair[0]) || used.has(pair[1])) return result(state, false, "Each batch cross must use two distinct parents, and each parent can only be used once per batch.");
+    used.add(pair[0]); used.add(pair[1]);
+    const started = startBreeding(next, pair[0], pair[1]);
+    if (!started.ok) return result(state, false, "Batch cancelled without changes: " + started.message);
+    next = started.state;
+  }
+  return result(next, true, "Batch Breeding started " + pairs.length + " crosses.");
 }
 export function unlockResearchNode(state: GameState,id: string): ActionResult {
   const next=unlockResearch(id,{points:state.research,unlocked:state.researchUnlocks,completed:state.researchUnlocks});
@@ -294,7 +308,7 @@ export function startMutationAnalysis(state: GameState,id: string): ActionResult
   return result({...state,cash:state.cash-25,projectStarted:true,analysisTargetSpecimenId:id,analysisStartedDay:state.day},true,"Mutation Analysis started for "+specimen.nickname+".");
 }
 export function advanceGameDay(state: GameState): ActionResult {
-  const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController,state.facilityCondition), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
+  const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController,Math.min(100,state.facilityCondition+(state.researchUnlocks.includes("controlled-environment")?15:0))), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
   const notices:string[]=[];
   const specimens=state.specimens.map(s=>{
     if(s.dead||s.health<=0)return {...s,health:0,dead:true,value:0};
