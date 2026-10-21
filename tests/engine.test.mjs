@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -367,4 +367,23 @@ test("research technicians improve observation yield", () => {
   const observed = observeSpecimen(hired.state, hired.state.specimens[0].id);
   assert.equal(observed.ok, true);
   assert.equal(observed.state.research, 3);
+});
+
+
+test("facility condition degrades weekly and paid maintenance restores controller reliability", () => {
+  const initial = {
+    ...createGameState("facility-maintenance"),
+    cash: 200,
+    facilityLevels: { propagationBench: 0, environmentalController: 1 },
+  };
+  let state = initial;
+  for (let i = 0; i < 6; i++) state = advanceGameDay(state).state;
+  assert.equal(state.day, 7);
+  assert.equal(state.facilityCondition, 99);
+  const maintained = maintainFacilities(state);
+  assert.equal(maintained.ok, true);
+  assert.equal(maintained.state.facilityCondition, 100);
+  assert.equal(maintained.state.cash, state.cash - 25);
+  const noEquipment = maintainFacilities(createGameState("no-equipment"));
+  assert.equal(noEquipment.ok, false);
 });
