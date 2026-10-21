@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 
 test("new game is headless and starts with the intended economy", () => {
@@ -254,4 +254,24 @@ test("treatment rejects dead specimens and does not charge for absent problems",
   assert.equal(treatSpecimen(dead, id, "pests").ok, false);
   assert.equal(treatSpecimen(bought.state, id, "pests").ok, false);
   assert.equal(treatSpecimen(bought.state, id, "pests").state.cash, bought.state.cash);
+});
+
+
+test("loans have a fixed cap, accrue weekly interest, and can be repaid", () => {
+  const initial = createGameState("loan-lifecycle");
+  const borrowed = borrowFunds(initial, 100);
+  assert.equal(borrowed.ok, true);
+  assert.equal(borrowed.state.cash, initial.cash + 100);
+  assert.equal(borrowed.state.financeDebt, 100);
+  assert.equal(borrowFunds(borrowed.state, 500).ok, true);
+  const capped = { ...borrowed.state, financeDebt: 950 };
+  assert.equal(borrowFunds(capped, 100).ok, false);
+  let state = borrowed.state;
+  for (let i = 0; i < 6; i++) state = advanceGameDay(state).state;
+  assert.equal(state.day, 7);
+  assert.equal(state.financeDebt, 102);
+  const repaid = repayLoan(state, 100);
+  assert.equal(repaid.ok, true);
+  assert.equal(repaid.state.financeDebt, 2);
+  assert.equal(repayLoan(repaid.state, 100).state.financeDebt, 2);
 });
