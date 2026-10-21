@@ -66,7 +66,7 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
   return { state: next, ok, message, ...extra };
 };
 export function createGameState(seed = "j2grows-new-game"): GameState {
-  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent", customerOrders: [], reputation: 50 };
+  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), facilityCondition: 100, staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent", customerOrders: [], reputation: 50 };
 }
 function valueOf(specimen: Specimen): number {
   const plant = findSpecies(specimen.speciesId);
