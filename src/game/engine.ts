@@ -16,7 +16,7 @@ export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "
 export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number };
 export type FinancialStatus = "solvent" | "arrears";
 export type GameState = {
-  version: 1; simulationSeed: string; specimens: Specimen[]; breedingProjects: BreedingProject[];
+  version: 1; saveFormatVersion?: number; savedAt?: number; simulationSeed: string; specimens: Specimen[]; breedingProjects: BreedingProject[];
   cash: number; research: number; day: number; projectStarted: boolean;
   analysisTargetSpecimenId?: string; analysisStartedDay?: number; analysisEquipmentLevel: number;
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
