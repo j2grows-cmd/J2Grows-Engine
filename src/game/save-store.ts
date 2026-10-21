@@ -1,6 +1,5 @@
 import type { GameState, LedgerEntry, FinancialStatus, CustomerOrder } from "./engine.ts";
 import type { SupplierShipment } from "./suppliers.ts";
-/*REMOVE_IMPORT_MARKER*/ from "./engine.ts";
 import { DEFAULT_STAFF_STATE, normalizeStaffState } from "./staff.ts";
 import { normalizeFacilityLevels } from "./facilities.ts";
 import { DEFAULT_ENVIRONMENT } from "./genetics.ts";
