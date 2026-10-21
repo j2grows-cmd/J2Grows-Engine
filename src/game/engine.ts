@@ -13,9 +13,11 @@ import { analyseGenetics, createMutation, createSpecimenGenetics, growVariegatio
 import { applyTraitTargeting, breedingDurationDays, breedingFailureChance, calculateBreedingCost, calculateTargetedBreedingCost, calculateTargetedFailureChance, inheritTraits, mutationOccurs, type BreedingProject, type TargetableTrait, RESEARCH_TREE, unlockResearch } from "./progression.ts";
 
 export type PropagationMethod = "cutting" | "division" | "corm" | "tissue-culture";
-export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "treatment" | "debt" | "other";
+export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "treatment" | "debt" | "sales" | "other";
 export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number };
 export type FinancialStatus = "solvent" | "arrears" | "insolvent";
+export type SalesChannel = "retail" | "wholesale" | "auction";
+export type CustomerOrder = { id: string; speciesId: string; quantity: number; unitPrice: number; channel: SalesChannel; createdDay: number; dueDay: number; status: "open" | "fulfilled" | "expired" };
 export type GameState = {
   version: 1; saveFormatVersion?: number; savedAt?: number; offlineProgressEnabled: boolean; simulationSeed: string; specimens: Specimen[]; breedingProjects: BreedingProject[];
   cash: number; research: number; day: number; projectStarted: boolean;
@@ -23,6 +25,7 @@ export type GameState = {
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
   facilityLevels: FacilityLevels; staffState: StaffState;
   ledger: LedgerEntry[]; financeArrears: number; financeDebt: number; financialStatus: FinancialStatus;
+  customerOrders: CustomerOrder[]; reputation: number;
 };
 export type ActionResult = { state: GameState; ok: boolean; message: string; createdSpecimenIds?: string[] };
 function ledgerCategory(message: string, amount: number): LedgerCategory {
@@ -35,6 +38,7 @@ function ledgerCategory(message: string, amount: number): LedgerCategory {
   if (text.includes("treatment") || text.includes("treated")) return "treatment";
   if (text.includes("loan") || text.includes("debt") || text.includes("interest")) return "debt";
   if (text.includes("sold")) return "plant-sale";
+  if (text.includes("order fulfilled")) return "sales";
   if (text.includes("acquired")) return "plant-purchase";
   if (text.includes("operating cost") || text.includes("wage") || text.includes("overhead")) return "operating-cost";
   return amount === 0 ? "other" : "other";
@@ -62,7 +66,7 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
   return { state: next, ok, message, ...extra };
 };
 export function createGameState(seed = "j2grows-new-game"): GameState {
-  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent" };
+  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent", customerOrders: [], reputation: 50 };
 }
 function valueOf(specimen: Specimen): number {
   const plant = findSpecies(specimen.speciesId);
@@ -192,6 +196,17 @@ export function setGreenhouseEnvironment(state: GameState, input: Partial<PlantE
   const environment={...state.greenhouseEnvironment,light:clamp(input.light,state.greenhouseEnvironment.light),nutrition:clamp(input.nutrition,state.greenhouseEnvironment.nutrition),humidity:clamp(input.humidity,state.greenhouseEnvironment.humidity),health:clamp(input.health,state.greenhouseEnvironment.health)};
   return result({...state,greenhouseEnvironment:environment},true,"Greenhouse environment updated.");
 }
+export function fulfillCustomerOrder(state: GameState, orderId: string): ActionResult {
+  const order = state.customerOrders.find((item) => item.id === orderId);
+  if (!order || order.status !== "open") return result(state, false, "Customer order is not open.");
+  if (state.day > order.dueDay) return result(state, false, "This customer order has passed its deadline.");
+  const stock = state.specimens.filter((item) => item.speciesId === order.speciesId && !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === item.id));
+  if (stock.length < order.quantity) return result(state, false, "Not enough eligible stock to fulfil this order.");
+  const soldIds = new Set(stock.slice(0, order.quantity).map((item) => item.id));
+  const revenue = order.unitPrice * order.quantity;
+  const orders = state.customerOrders.map((item) => item.id === orderId ? { ...item, status: "fulfilled" as const } : item);
+  return result({ ...state, cash: state.cash + revenue, specimens: state.specimens.filter((item) => !soldIds.has(item.id)), customerOrders: orders, reputation: Math.min(100, state.reputation + 2) }, true, "Customer order fulfilled: " + order.quantity + " × " + findSpecies(order.speciesId).name + " for £" + revenue + ".");
+}
 export const MAX_LOAN_BALANCE = 1000;
 export const LOAN_INTEREST_RATE_PER_WEEK = 0.02;
 export function borrowFunds(state: GameState, amount: number): ActionResult {
@@ -296,7 +311,7 @@ export function advanceGameDay(state: GameState): ActionResult {
   });
   const finished=new Set(projects.filter(p=>p.status!=="active").map(p=>p.id));
   const unreserved=specimens.map(s=>s.reservedByProjectId&&finished.has(s.reservedByProjectId)?({...s,reservedByProjectId:undefined}):s);
-  let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff};
+  let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff,customerOrders:[...(state.customerOrders??[])],reputation:state.reputation??50};
   if(day % 7 === 0){
     const weeklyCost = weeklyStaffOperatingCost(staff) + weeklyFacilityOperatingCost(state.facilityLevels, state.analysisEquipmentLevel, state.researchUnlocks.includes("routine-automation"));
     if((next.financeDebt ?? 0) > 0){
@@ -313,6 +328,30 @@ export function advanceGameDay(state: GameState): ActionResult {
       const entry: LedgerEntry = { id: state.simulationSeed + ":day:" + day + ":overheads", day, category: "operating-cost", description: "Weekly staff and facility operating costs", amount: -weeklyCost, balance };
       next = { ...next, cash: balance, financeArrears: (next.financeArrears ?? 0) + shortfall, financialStatus: (next.financeArrears ?? 0) >= 100 && balance === 0 ? "insolvent" : shortfall > 0 || (next.financeArrears ?? 0) > 0 ? "arrears" : "solvent", ledger: [...(next.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
       notices.push("Weekly operating costs: £" + weeklyCost + (shortfall > 0 ? "; £" + shortfall + " added to arrears." : "."));
+    }
+  }
+  const overdue = next.customerOrders.filter((order) => order.status === "open" && day > order.dueDay);
+  if (overdue.length > 0) {
+    const overdueIds = new Set(overdue.map((order) => order.id));
+    next = { ...next, customerOrders: next.customerOrders.map((order) => overdueIds.has(order.id) ? { ...order, status: "expired" as const } : order), reputation: Math.max(0, next.reputation - overdue.length * 3) };
+    notices.push(overdue.length + " customer order(s) expired; reputation declined.");
+  }
+  if (day % 7 === 0) {
+    const available = next.specimens.filter((item) => !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !item.propagation);
+    const candidates = available.filter((item) => !next.customerOrders.some((order) => order.status === "open" && order.speciesId === item.speciesId));
+    if (candidates.length > 0) {
+      const random = createEventRandom(state.simulationSeed, "day:" + day + ":customer-order");
+      const chosen = candidates[Math.floor(random() * candidates.length)];
+      const stockCount = available.filter((item) => item.speciesId === chosen.speciesId).length;
+      const quantity = 1 + Math.floor(random() * Math.min(3, stockCount));
+      const channel = (["retail", "wholesale", "auction"] as const)[Math.floor(random() * 3)];
+      const economy = getSpeciesEconomy(chosen.speciesId) ?? getSpeciesEconomy(findSpecies(chosen.speciesId).name);
+      const rarity = (economy?.rarity ?? findSpecies(chosen.speciesId).rarity) as RarityTier;
+      const baseOffer = getMarketOffer(chosen.value, chosen.speciesId, rarity, day);
+      const channelMultiplier = channel === "retail" ? 1.2 : channel === "wholesale" ? 0.85 : 1.45;
+      const order: CustomerOrder = { id: state.simulationSeed + "-order-" + day, speciesId: chosen.speciesId, quantity, unitPrice: Math.max(1, Math.round(baseOffer * channelMultiplier)), channel, createdDay: day, dueDay: day + 14, status: "open" };
+      next = { ...next, customerOrders: [...next.customerOrders, order].slice(-100) };
+      notices.push("New " + channel + " customer order for " + quantity + " × " + findSpecies(chosen.speciesId).name + ".");
     }
   }
   if(state.projectStarted&&state.analysisStartedDay!==undefined&&day-state.analysisStartedDay>=3&&state.analysisTargetSpecimenId){
