@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, analyseSpecimen, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS, orderSupplierStock, collectSupplierShipment } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, analyseSpecimen, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS, orderSupplierStock, collectSupplierShipment, upgradeFacility } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -495,4 +495,15 @@ test("routine automation only activates after its research unlock and requires m
   assert.equal(automated.specimens[0].genetics.environment.autoCare, true);
   const degraded = advanceGameDay({ ...state, facilityCondition: 20 }).state;
   assert.equal(degraded.specimens[0].genetics.environment.autoCare, false);
+});
+
+
+test("facility upgrades require the matching research unlock", () => {
+  const initial = { ...createGameState("facility-research-gate"), cash: 5000, research: 1000, ledger: [{ id: "opening", day: 1, category: "other", description: "Opening balance", amount: 0, balance: 5000 }] };
+  assert.equal(upgradeFacility(initial, "Propagation bench").ok, false);
+  const notes = unlockResearchNode(initial, "field-notes");
+  const propagation = unlockResearchNode(notes.state, "propagation-science");
+  const upgraded = upgradeFacility(propagation.state, "Propagation bench");
+  assert.equal(upgraded.ok, true);
+  assert.equal(upgraded.state.facilityLevels.propagationBench, 1);
 });
