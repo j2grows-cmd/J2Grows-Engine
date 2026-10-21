@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 
 test("new game is headless and starts with the intended economy", () => {
@@ -226,4 +226,32 @@ test("an Alocasia can only yield one corm per in-game year", () => {
   assert.equal(second.ok, false);
   assert.match(second.message, /already yielded a corm this year/i);
   assert.equal(second.state.specimens.length, first.state.specimens.length);
+});
+
+
+test("pest and disease treatment reduces the selected pressure and records its cost", () => {
+  const bought = purchasePlant(createGameState("treatment-test"), species[0]);
+  const id = bought.state.specimens[0].id;
+  const affected = {
+    ...bought.state,
+    specimens: bought.state.specimens.map((specimen) =>
+      specimen.id === id ? { ...specimen, pestLoad: 80, diseaseLoad: 70 } : specimen
+    ),
+  };
+  const treated = treatSpecimen(affected, id, "both");
+  assert.equal(treated.ok, true);
+  const plant = treated.state.specimens.find((specimen) => specimen.id === id);
+  assert.equal(plant.pestLoad, 20);
+  assert.equal(plant.diseaseLoad, 10);
+  assert.equal(treated.state.cash, affected.cash - 15);
+  assert.equal(treated.state.ledger.at(-1).category, "treatment");
+});
+
+test("treatment rejects dead specimens and does not charge for absent problems", () => {
+  const bought = purchasePlant(createGameState("treatment-guards"), species[0]);
+  const id = bought.state.specimens[0].id;
+  const dead = { ...bought.state, specimens: bought.state.specimens.map((specimen) => specimen.id === id ? { ...specimen, dead: true, health: 0, pestLoad: 90 } : specimen) };
+  assert.equal(treatSpecimen(dead, id, "pests").ok, false);
+  assert.equal(treatSpecimen(bought.state, id, "pests").ok, false);
+  assert.equal(treatSpecimen(bought.state, id, "pests").state.cash, bought.state.cash);
 });
