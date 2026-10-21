@@ -22,6 +22,7 @@ function finite(value: unknown, fallback: number, min: number, max: number): num
 export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormalization {
   if (!record(value)) return { state: null, reason: "Save data is not an object.", repaired: 0 };
   if (value.version !== 1) return { state: null, reason: "Unsupported game-state version.", repaired: 0 };
+  if (value.saveFormatVersion !== undefined && (!Number.isInteger(value.saveFormatVersion) || Number(value.saveFormatVersion) < 1 || Number(value.saveFormatVersion) > SAVE_FORMAT_VERSION)) return { state: null, reason: "Unsupported save format version.", repaired: 0 };
   if (typeof value.simulationSeed !== "string" || !value.simulationSeed || !Array.isArray(value.specimens) || !Array.isArray(value.breedingProjects) || !Array.isArray(value.researchUnlocks)) {
     return { state: null, reason: "Required game data is missing.", repaired: 0 };
   }
