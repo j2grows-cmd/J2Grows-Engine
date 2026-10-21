@@ -466,6 +466,28 @@ export function advanceGameDay(state: GameState): ActionResult {
     if(location.startsWith("Supplier quarantine")&&quarantineUntilDay!==undefined&&day>=quarantineUntilDay&&pestLoad<30&&diseaseLoad<30){location="Home greenhouse";quarantineUntilDay=undefined;notices.push(s.nickname+" cleared supplier quarantine.");}
     const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,quarantineUntilDay,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
   });
+  const salvageIds = new Set(specimens.map((specimen) => specimen.id));
+  for (const specimen of [...specimens]) {
+    const previous = state.specimens.find((item) => item.id === specimen.id);
+    if (!specimen.dead || !previous || previous.dead || previous.health <= 0) continue;
+    const plant = findSpecies(specimen.speciesId);
+    const genus = plant.latin.split(" ")[0].toLowerCase();
+    const method = genus === "alocasia" && ["Mature", "Breeding-ready"].includes(previous.stage) ? "corm"
+      : ["monstera", "philodendron", "anthurium"].includes(genus) && ["Mature", "Breeding-ready"].includes(previous.stage) ? "cutting" : null;
+    if (!method) continue;
+    const salvageRandom = createEventRandom(state.simulationSeed, "death-salvage:" + day + ":" + plant.id);
+    const salvageChance = method === "corm" ? 0.35 : 0.2;
+    if (salvageRandom() >= salvageChance) {
+      notices.push(specimen.nickname + " died without viable propagation material.");
+      continue;
+    }
+    const id = createUniqueSpecimenId(salvageIds); salvageIds.add(id);
+    const genetics = specimen.genetics ? { ...specimen.genetics, genetics: { ...specimen.genetics.genetics, mutationIds: [...specimen.genetics.genetics.mutationIds] }, observations: [], research: { points: 0, observationCount: 0, analysisLevel: 0, discoveredTraits: [], mutations: specimen.genetics.research.mutations.map((mutation) => ({ ...mutation, detected: false })) } } : createSpecimenGenetics(specimen.variegation, salvageRandom);
+    const child: Specimen = { id, speciesId: specimen.speciesId, nickname: plant.name + (method === "corm" ? " · Salvaged corm" : " · Salvaged cutting"), location: method === "corm" ? "Recovery · Corm nursery" : "Recovery · Propagation bench", health: method === "corm" ? 45 : 35, stage: method === "corm" ? "Corm / Seedling" : "Juvenile", stageDays: 0, propagation: { method, phase: method === "corm" ? "Corm" : "Cutting", daysInPhase: 0, daysToSprout: method === "corm" ? 3 + Math.floor(salvageRandom() * 4) : 0, daysToEstablish: 4 + Math.floor(salvageRandom() * 4), ...(method === "cutting" ? { daysToJuvenile: 5 + Math.floor(salvageRandom() * 4) } : {}) }, value: 0, purchasePrice: undefined, protected: false, variegation: specimen.variegation, discovered: false, genetics };
+    child.value = valueOf(child);
+    specimens.push(child);
+    notices.push("A viable " + (method === "corm" ? "corm" : "cutting") + " survived the loss of " + specimen.nickname + ".");
+  }
   const usedSpecimenIds = new Set(specimens.map((specimen) => specimen.id));
   let projects=state.breedingProjects.map(p=>({...p}));
   projects=projects.map(p=>{
