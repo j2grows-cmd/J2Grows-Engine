@@ -413,6 +413,12 @@ export function startMutationAnalysis(state: GameState,id: string): ActionResult
 export function advanceGameDay(state: GameState): ActionResult {
   const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController,Math.min(100,state.facilityCondition+(state.researchUnlocks.includes("controlled-environment")?15:0))), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
   const notices:string[]=[];
+  const locationPestPressure = new Map<string, number>();
+  const locationDiseasePressure = new Map<string, number>();
+  for (const specimen of state.specimens) {
+    if ((specimen.pestLoad ?? 0) >= 30) locationPestPressure.set(specimen.location, (locationPestPressure.get(specimen.location) ?? 0) + 1);
+    if ((specimen.diseaseLoad ?? 0) >= 30) locationDiseasePressure.set(specimen.location, (locationDiseasePressure.get(specimen.location) ?? 0) + 1);
+  }
   const specimens=state.specimens.map(s=>{
     if(s.dead||s.health<=0)return {...s,health:0,dead:true,value:0};
     const random=createEventRandom(state.simulationSeed,"day:"+day+":specimen:"+s.id);
@@ -420,8 +426,12 @@ export function advanceGameDay(state: GameState): ActionResult {
     const diseaseRandom=createEventRandom(state.simulationSeed,"day:"+day+":disease:"+s.id);
     const maintenanceStaff=staff.employees.filter((employee)=>employee.role==="maintenance-technician"&&employee.morale>=20).length;
     const maintenanceFactor=Math.max(0.4,1-maintenanceStaff*0.2);
-    const pestRisk=(environment.humidity<35?0.012:0.001)*maintenanceFactor;
-    const diseaseRisk=(environment.humidity>88&&environment.nutrition<50?0.015:environment.humidity>94?0.005:0.0005)*maintenanceFactor;
+    const pestNeighbours=Math.max(0,(locationPestPressure.get(s.location)??0)-((s.pestLoad??0)>=30?1:0));
+    const diseaseNeighbours=Math.max(0,(locationDiseasePressure.get(s.location)??0)-((s.diseaseLoad??0)>=30?1:0));
+    const pestSpread=1+Math.min(2,pestNeighbours*0.25);
+    const diseaseSpread=1+Math.min(2,diseaseNeighbours*0.3);
+    const pestRisk=(environment.humidity<35?0.012:0.001)*maintenanceFactor*pestSpread;
+    const diseaseRisk=(environment.humidity>88&&environment.nutrition<50?0.015:environment.humidity>94?0.005:0.0005)*maintenanceFactor*diseaseSpread;
     const pestLoad=Math.min(100,(s.pestLoad??0)+(pestRandom()<pestRisk?10:0));
     const diseaseLoad=Math.min(100,(s.diseaseLoad??0)+(diseaseRandom()<diseaseRisk?10:0));
     const health=Math.max(0,calculateDailyHealth(s.health,environment.autoCare?Math.max(60,care):care)-Math.ceil(pestLoad/25)-Math.ceil(diseaseLoad/20));
