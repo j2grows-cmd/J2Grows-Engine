@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 
 test("new game is headless and starts with the intended economy", () => {
@@ -65,4 +65,47 @@ test("mutation analysis cannot start without a living specimen", () => {
   const result = startMutationAnalysis(createGameState("analysis-test"), "missing-specimen");
   assert.equal(result.ok, false);
   assert.equal(result.state.cash, 100);
+});
+
+
+test("breeding rejects mature parents until both are breeding-ready", () => {
+  const plant = species.find((candidate) => candidate.latin.split(" ")[0] === "Alocasia") ?? species[0] ?? findSpecies("alocasia-polly");
+  const first = purchasePlant(createGameState("breeding-eligibility"), plant);
+  const second = purchasePlant(first.state, plant);
+  const [a, b] = second.state.specimens;
+  const matureState = {
+    ...second.state,
+    specimens: second.state.specimens.map((specimen) => ({ ...specimen, stage: "Mature" })),
+  };
+  const blocked = startBreeding(matureState, a.id, b.id);
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.message, /breeding-ready/i);
+
+  const readyState = {
+    ...second.state,
+    specimens: second.state.specimens.map((specimen) => ({ ...specimen, stage: "Breeding-ready" })),
+  };
+  const started = startBreeding(readyState, a.id, b.id);
+  assert.equal(started.ok, true);
+  assert.equal(started.state.breedingProjects.length, 1);
+  assert.ok(started.state.specimens.every((specimen) => specimen.reservedByProjectId));
+});
+
+test("greenhouse controls clamp values to the supported 0–100 range", () => {
+  const initial = createGameState("environment-clamp");
+  const changed = setGreenhouseEnvironment(initial, { light: 140, humidity: -20, nutrition: Number.NaN });
+  assert.equal(changed.state.greenhouseEnvironment.light, 100);
+  assert.equal(changed.state.greenhouseEnvironment.humidity, 0);
+  assert.equal(changed.state.greenhouseEnvironment.nutrition, initial.greenhouseEnvironment.nutrition);
+});
+
+test("staff training charges once and refuses a second concurrent course", () => {
+  const initial = createGameState("staff-training");
+  const started = beginStaffTraining(initial);
+  assert.equal(started.ok, true);
+  assert.equal(started.state.cash, initial.cash - 25);
+  assert.equal(started.state.staffState.trainingDaysRemaining, 3);
+  const duplicate = beginStaffTraining(started.state);
+  assert.equal(duplicate.ok, false);
+  assert.equal(duplicate.state.cash, started.state.cash);
 });
