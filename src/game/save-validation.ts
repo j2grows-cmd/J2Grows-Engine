@@ -69,6 +69,8 @@ export function normalizeSpecimens(value: unknown): SpecimenRecovery {
     const specimen: Specimen = {
       id: raw.id, speciesId: raw.speciesId, nickname: raw.nickname.slice(0, 120), location: raw.location.slice(0, 160),
       health, stage: raw.stage as Specimen["stage"], value: valueAmount, protected: raw.protected, variegation,
+      ...(typeof raw.pestLoad === "number" && Number.isFinite(raw.pestLoad) ? { pestLoad: finite(raw.pestLoad, 0, 0, 100) } : {}),
+      ...(typeof raw.diseaseLoad === "number" && Number.isFinite(raw.diseaseLoad) ? { diseaseLoad: finite(raw.diseaseLoad, 0, 0, 100) } : {}),
       ...(typeof raw.dead === "boolean" ? { dead: raw.dead } : {}),
       ...(typeof raw.discovered === "boolean" ? { discovered: raw.discovered } : {}),
       ...(typeof raw.geneticLineId === "string" ? { geneticLineId: raw.geneticLineId } : {}),
