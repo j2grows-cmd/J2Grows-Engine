@@ -61,6 +61,7 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
     version: 1 as const,
     saveFormatVersion: SAVE_FORMAT_VERSION,
     savedAt: finite(value.savedAt, now, 0, Number.MAX_SAFE_INTEGER),
+    offlineProgressEnabled: value.offlineProgressEnabled === true,
     simulationSeed: value.simulationSeed,
     specimens: value.specimens,
     breedingProjects: value.breedingProjects,
