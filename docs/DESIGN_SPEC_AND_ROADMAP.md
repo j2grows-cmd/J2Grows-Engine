@@ -94,3 +94,34 @@ J2Grows is a premium, desktop-first botanical empire simulator combining species
 - The Ledger contains summary metrics and placeholder transaction copy rather than a transaction history.
 - Offline-progress currently exposes a bounded day calculation; end-to-end application of offline days still requires verification.
 - Repository source was inspected through GitHub. Do not claim local tests/builds or browser verification unless those checks are actually observed.
+
+
+## Implementation status — 2026-10-21
+
+The following staged foundations have now been committed directly to `main`:
+
+- **Integrity:** annual corm harvest tracking; dead/zero-health propagation and sale guards.
+- **Save safety:** live-format validation and normalization; versioned save metadata; rotating backups; corrupt-save preservation; restore-last-valid-backup UI; finance, staff, shipment, and progression defaults during recovery.
+- **Finance:** transaction ledger, weekly staff/facility charges, arrears, automatic arrears repayment from incoming cash, capped loans, weekly loan interest, repayment controls, and voluntary liquidation of unprotected/unreserved living specimens.
+- **Market:** deterministic time-varying quotes by species and rarity, with conservative market-adjusted buyback offers.
+- **Plant health:** pest/disease pressure, treatment actions, and care-consistency affecting daily health.
+- **Facilities:** condition wear, degraded environmental-control effectiveness, maintenance actions, and maintenance-technician mitigation.
+- **Workforce:** role-based hiring and dismissal, weekly wages, experience, morale, care/research/reputation effects, and preventive-maintenance effects.
+- **Commercial operations:** global supplier regions, freight and transit times, shipment collection/quarantine loads, weekly customer orders, fulfilment, deadlines, and reputation consequences.
+- **Progression:** batch breeding unlock/effect, research-node bonuses, persistent achievements, and a prestige reset with permanent observation-research bonuses.
+- **Offline and scale:** opt-in offline replay through the normal daily engine, capped at 14 days; regression coverage for a 10,000-specimen daily simulation.
+- **Verification:** GitHub Actions runs typecheck, production build, and the full Node test suite on every push to `main`.
+
+### Still outstanding before calling the full design complete
+
+- True long-form species-specific biology with substrate/moisture, temperature, airflow, watering schedules, and explicit treatment diagnosis.
+- Disease/pest transmission between neighbouring specimens and a richer quarantine workflow.
+- Supplier reputation, customs/import compliance, supplier reliability and payment terms.
+- A deeper multi-product nursery inventory, competitor supply/demand, auction clearing, wholesale contracts, and licensing.
+- More complete staffing schedules, specialisms, workload, recruitment history, and automation maintenance failures.
+- A unified, fully versioned migration path for every historic save schema; current live-save normalization is integrated, while the older separate schema normalizer still needs reconciliation.
+- Milestone-driven unlock gating and broader permanent collection achievements.
+- Profiling beyond the 10,000-specimen regression fixture, particularly with many active breeding projects and shipments.
+- Browser-based manual playthroughs, save corruption/recovery walkthroughs, and mobile/desktop visual QA.
+
+These are explicit remaining work items, not features claimed to be finished.
