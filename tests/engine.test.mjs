@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -310,4 +310,36 @@ test("liquidation protects reserved and protected specimens", () => {
   const liquidated = liquidateAssets(state);
   assert.equal(liquidated.ok, false);
   assert.equal(liquidated.state.specimens.length, 1);
+});
+
+
+test("weekly customer orders generate from eligible stock and fulfilment rewards revenue and reputation", () => {
+  const bought = purchasePlant(createGameState("customer-order"), species[0]);
+  let state = bought.state;
+  for (let i = 0; i < 6; i++) state = advanceGameDay(state).state;
+  assert.equal(state.day, 7);
+  assert.equal(state.customerOrders.length, 1);
+  const order = state.customerOrders[0];
+  assert.equal(order.status, "open");
+  assert.equal(order.quantity, 1);
+  const fulfilled = fulfillCustomerOrder(state, order.id);
+  assert.equal(fulfilled.ok, true);
+  assert.equal(fulfilled.state.customerOrders[0].status, "fulfilled");
+  assert.equal(fulfilled.state.specimens.length, 0);
+  assert.equal(fulfilled.state.reputation, 52);
+  assert.equal(fulfilled.state.cash, state.cash + order.unitPrice);
+  assert.equal(fulfilled.state.ledger.at(-1).category, "sales");
+});
+
+test("overdue customer orders expire and reduce reputation", () => {
+  const state = {
+    ...createGameState("customer-order-expiry"),
+    day: 20,
+    customerOrders: [{ id: "late-order", speciesId: species[0].id, quantity: 1, unitPrice: 20, channel: "retail", createdDay: 1, dueDay: 20, status: "open" }],
+    reputation: 50,
+  };
+  const advanced = advanceGameDay(state);
+  assert.equal(advanced.state.customerOrders[0].status, "expired");
+  assert.equal(advanced.state.reputation, 47);
+  assert.match(advanced.message, /expired/i);
 });
