@@ -126,3 +126,18 @@
 .shipment-list{display:grid;gap:0;margin-top:12px}
 .shipment-list .transaction-row{grid-template-columns:minmax(0,1fr) auto auto}
 @media(max-width:700px){.supplier-actions{grid-template-columns:1fr}.shipment-list .transaction-row{grid-template-columns:minmax(0,1fr) auto}.shipment-list .transaction-row>button,.shipment-list .transaction-row>small{grid-column:1/-1}}
+
+
+/* First-session onboarding: quiet, actionable and aligned with the studio's visual language */
+.onboarding{background:linear-gradient(135deg,#151d12,#10140e);border-color:#64794b66}
+.onboarding .panel-head{margin-bottom:16px}
+.onboarding-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.onboarding-steps>button{display:flex;align-items:flex-start;gap:11px;min-width:0;text-align:left;padding:14px;border:1px solid var(--line,#293026);border-radius:7px;background:#0d110b;color:var(--text,#e8ebdf);transition:border-color .18s ease,background .18s ease}
+.onboarding-steps>button:hover{border-color:#829b5c;background:#151c11}
+.onboarding-steps>button>i{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;border:1px solid #657451;border-radius:50%;font-size:9px;font-style:normal;color:#b6c79a}
+.onboarding-steps>button.complete>i{background:#28371d;border-color:#8fa75a;color:#dbe9c7}
+.onboarding-steps>button>span{display:grid;gap:6px;min-width:0;flex:1}
+.onboarding-steps>button b{font-size:11px;font-weight:600;line-height:1.45}
+.onboarding-steps>button small{font-size:10px;line-height:1.6;color:var(--muted,#8c9684)}
+.onboarding-steps>button>svg{flex:0 0 auto;margin-top:5px;color:#9caf7b}
+@media(max-width:900px){.onboarding-steps{grid-template-columns:1fr}.onboarding-steps>button{align-items:center}.onboarding-steps>button>span{flex:1}}
