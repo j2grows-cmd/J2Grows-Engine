@@ -99,3 +99,12 @@
 .status.positive{color:#b5d58a}
 .status.negative{color:#e4a08c}
 @media(max-width:700px){.order-grid{grid-template-columns:1fr}}
+
+
+/* Workforce management */
+.staff-hire-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0 26px}
+.staff-role-card{display:flex;flex-direction:column;gap:10px;padding:17px;border:1px solid var(--line,#293026);border-radius:8px;background:#12170f}
+.staff-role-card h3{font-size:14px;margin:0}
+.staff-role-card p{font-size:11px;line-height:1.6;color:var(--muted,#8c9684);min-height:34px;margin:0}
+.staff-role-card .secondary{margin-top:5px}
+@media(max-width:700px){.staff-hire-grid{grid-template-columns:1fr}}
