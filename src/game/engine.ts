@@ -147,7 +147,8 @@ export function observeSpecimen(state: GameState, id: string): ActionResult {
   if (specimen.lastObservedDay === state.day) return result(state, false, "This specimen has already been observed today.");
   const record = specimen.genetics ?? createSpecimenGenetics(specimen.variegation, createEventRandom(state.simulationSeed, "observe:" + state.day + ":" + id));
   const genetics = observePlant(record, specimen.variegation, state.researchUnlocks.includes("mutation-screening") && state.analysisEquipmentLevel > 0);
-  const updated = { ...specimen, genetics, lastObservedDay: state.day, discovered: Boolean(specimen.discovered || genetics.research.mutations.some(m => m.detected)) };
+  const hasDiagnosisExpertise = state.researchUnlocks.includes("field-notes") || state.staffState.employees.some((employee) => employee.role === "horticulturist" && employee.morale >= 20);
+  const updated = { ...specimen, genetics, lastObservedDay: state.day, pestDiagnosed: Boolean(specimen.pestDiagnosed || hasDiagnosisExpertise), diseaseDiagnosed: Boolean(specimen.diseaseDiagnosed || hasDiagnosisExpertise), discovered: Boolean(specimen.discovered || genetics.research.mutations.some(m => m.detected)) };
   updated.value = valueOf(updated);
   const researchGain = 2 + (state.researchUnlocks.includes("field-notes") ? 1 : 0) + (state.researchUnlocks.includes("genetic-baseline") ? 1 : 0) + Math.min(3, state.prestigePoints ?? 0) + Math.min(3, state.staffState.employees.filter((employee) => employee.role === "research-technician" && employee.morale >= 20).length);
   return result({ ...state, research: state.research + researchGain, specimens: state.specimens.map(s => s.id === id ? updated : s) }, true, "Observation recorded for " + specimen.nickname + " (" + researchGain + " research points).");
@@ -464,7 +465,8 @@ export function advanceGameDay(state: GameState): ActionResult {
     if(propagation){const progress=advancePropagationPhase(propagation,suitability<45?2:suitability<65?1:0,state.facilityLevels.propagationBench);propagation=progress.propagation;if(progress.transition==="cutting-rooting")location="Propagation Bench · Rooting";else if(progress.transition==="rooting-new-growth")location="Propagation Bench · New Growth";else if(progress.transition==="corm-sprouting")location="Corm Nursery · Sprouting";else if(progress.transition==="propagation-established"){stage="Juvenile";stageDays=0;location="Greenhouse · Establishing";}if(propagation?.phase==="Sprouting")stage="Juvenile";}
     else{const progress=advanceEstablishedGrowthStage(stage,stageDays,health,speciesFactor,condition);stage=progress.stage;stageDays=progress.stageDays;if(progress.transition)notices.push(s.nickname+" advanced to "+stage+".");}
     if(location.startsWith("Supplier quarantine")&&quarantineUntilDay!==undefined&&day>=quarantineUntilDay&&pestLoad<30&&diseaseLoad<30){location="Home greenhouse";quarantineUntilDay=undefined;notices.push(s.nickname+" cleared supplier quarantine.");}
-    const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,quarantineUntilDay,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
+    const diagnosisExpertise=staff.employees.some((employee)=>employee.role==="horticulturist"&&employee.morale>=20);
+    const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,pestDiagnosed:Boolean(s.pestDiagnosed||diagnosisExpertise),diseaseDiagnosed:Boolean(s.diseaseDiagnosed||diagnosisExpertise),quarantineUntilDay,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
   });
   const salvageIds = new Set(specimens.map((specimen) => specimen.id));
   for (const specimen of [...specimens]) {
