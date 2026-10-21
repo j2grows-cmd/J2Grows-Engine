@@ -338,12 +338,13 @@ export function advanceGameDay(state: GameState): ActionResult {
     else{const progress=advanceEstablishedGrowthStage(stage,stageDays,health,speciesFactor,condition);stage=progress.stage;stageDays=progress.stageDays;if(progress.transition)notices.push(s.nickname+" advanced to "+stage+".");}
     const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
   });
+  const usedSpecimenIds = new Set(specimens.map((specimen) => specimen.id));
   let projects=state.breedingProjects.map(p=>({...p}));
   projects=projects.map(p=>{
     if(p.status!=="active"||p.completesOnDay>day)return p;
     const a=specimens.find(s=>s.id===p.parentAId),b=specimens.find(s=>s.id===p.parentBId),random=createEventRandom(state.simulationSeed,"day:"+day+":breeding:"+p.id);
     if(!a||!b||a.dead||b.dead||a.health<=0||b.health<=0||random()<p.failureChance){notices.push("Breeding project "+p.id+" failed or was cancelled.");return {...p,status:"cancelled" as const};}
-    const recordA=a.genetics??createSpecimenGenetics(a.variegation,random),recordB=b.genetics??createSpecimenGenetics(b.variegation,random),inherited=applyTraitTargeting(inheritTraits(recordA.genetics,recordB.genetics,random),recordA.genetics,recordB.genetics,p.targetTrait,random),id=createUniqueSpecimenId(new Set(specimens.map(s=>s.id))),generation=Math.max(a.generation??0,b.generation??0)+1;
+    const recordA=a.genetics??createSpecimenGenetics(a.variegation,random),recordB=b.genetics??createSpecimenGenetics(b.variegation,random),inherited=applyTraitTargeting(inheritTraits(recordA.genetics,recordB.genetics,random),recordA.genetics,recordB.genetics,p.targetTrait,random);const id=createUniqueSpecimenId(usedSpecimenIds);usedSpecimenIds.add(id);const generation=Math.max(a.generation??0,b.generation??0)+1;
     const childRecord=createSpecimenGenetics((inherited.variegationPotential+inherited.stability)/2,random);childRecord.genetics=inherited;childRecord.genetics.mutationIds=[...inherited.mutationIds];
     childRecord.research.mutations=[...recordA.research.mutations,...recordB.research.mutations].filter((m,i,all)=>all.findIndex(x=>x.id===m.id)===i).map(m=>({...m,detected:false,origin:"breeding" as const,parentMutationIds:[m.id]}));
     const child:Specimen={id,speciesId:a.speciesId,nickname:"Hybrid "+generation+" · "+findSpecies(a.speciesId).name,location:"Breeding Nursery",health:85,stage:"Juvenile",value:0,protected:false,variegation:childRecord.genetics.variegationPotential,genetics:childRecord,generation,geneticLineId:p.lineId,lineParentIds:[a.id,b.id],stableMutationIds:[],stabilityGenerations:{}};
