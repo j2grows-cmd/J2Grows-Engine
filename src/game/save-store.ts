@@ -24,7 +24,7 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
   if (typeof value.simulationSeed !== "string" || !value.simulationSeed || !Array.isArray(value.specimens) || !Array.isArray(value.breedingProjects) || !Array.isArray(value.researchUnlocks)) {
     return { state: null, reason: "Required game data is missing.", repaired: 0 };
   }
-  if (typeof value.cash !== "number" || !Number.isFinite(value.cash) || value.cash < 0 || typeof value.research !== "number" || !Number.isFinite(value.research) || value.research < 0 || !Number.isInteger(value.day) || value.day < 1) {
+  if (typeof value.cash !== "number" || !Number.isFinite(value.cash) || value.cash < 0 || typeof value.research !== "number" || !Number.isFinite(value.research) || value.research < 0 || typeof value.day !== "number" || !Number.isInteger(value.day) || value.day < 1) {
     return { state: null, reason: "Cash, research, or day values are invalid.", repaired: 0 };
   }
   if (!value.specimens.every((item: unknown) => record(item) && typeof item.id === "string" && typeof item.speciesId === "string" && typeof item.nickname === "string" && typeof item.location === "string" && typeof item.stage === "string" && typeof item.protected === "boolean" && typeof item.health === "number" && Number.isFinite(item.health) && typeof item.value === "number" && Number.isFinite(item.value) && typeof item.variegation === "number" && Number.isFinite(item.variegation))) {
