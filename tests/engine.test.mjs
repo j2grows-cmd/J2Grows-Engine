@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -342,4 +342,29 @@ test("overdue customer orders expire and reduce reputation", () => {
   assert.equal(advanced.state.customerOrders[0].status, "expired");
   assert.equal(advanced.state.reputation, 47);
   assert.match(advanced.message, /expired/i);
+});
+
+
+test("hiring specialists changes payroll and dismissal removes future wages", () => {
+  const initial = createGameState("staff-roster");
+  const hired = hireEmployee(initial, "horticulturist");
+  assert.equal(hired.ok, true);
+  assert.equal(hired.state.cash, initial.cash - 70);
+  assert.equal(hired.state.staffState.employees.length, 1);
+  assert.equal(hired.state.staffState.employees[0].role, "horticulturist");
+  assert.equal(hired.state.staffState.employees[0].weeklyWage, 14);
+  assert.equal(hired.state.ledger.at(-1).category, "staff");
+  const dismissed = dismissEmployee(hired.state, hired.state.staffState.employees[0].id);
+  assert.equal(dismissed.ok, true);
+  assert.equal(dismissed.state.staffState.employees.length, 0);
+});
+
+test("research technicians improve observation yield", () => {
+  const bought = purchasePlant(createGameState("research-staff"), species[0]);
+  const state = { ...bought.state, cash: 200, ledger: [{ id: "opening", day: 1, category: "other", description: "Opening balance", amount: 0, balance: 200 }] };
+  const hired = hireEmployee(state, "research-technician");
+  assert.equal(hired.ok, true);
+  const observed = observeSpecimen(hired.state, hired.state.specimens[0].id);
+  assert.equal(observed.ok, true);
+  assert.equal(observed.state.research, 5);
 });
