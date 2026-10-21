@@ -25,7 +25,7 @@ export type GameState = {
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
   facilityLevels: FacilityLevels; facilityCondition: number; staffState: StaffState;
   ledger: LedgerEntry[]; financeArrears: number; financeDebt: number; financialStatus: FinancialStatus;
-  customerOrders: CustomerOrder[]; reputation: number;
+  customerOrders: CustomerOrder[]; reputation: number; achievements: string[]; prestigePoints: number; prestigeCount: number;
 };
 export type ActionResult = { state: GameState; ok: boolean; message: string; createdSpecimenIds?: string[] };
 function ledgerCategory(message: string, amount: number): LedgerCategory {
@@ -42,6 +42,38 @@ function ledgerCategory(message: string, amount: number): LedgerCategory {
   if (text.includes("acquired")) return "plant-purchase";
   if (text.includes("operating cost") || text.includes("wage") || text.includes("overhead")) return "operating-cost";
   return amount === 0 ? "other" : "other";
+}
+export const ACHIEVEMENTS: ReadonlyArray<{ id: string; label: string; description: string }> = [
+  { id: "first-specimen", label: "First Leaf", description: "Acquire your first specimen." },
+  { id: "five-specimens", label: "Growing Collection", description: "Register five specimens." },
+  { id: "first-observation", label: "Field Researcher", description: "Record your first observation." },
+  { id: "first-breeding-project", label: "Genetic Pioneer", description: "Start a breeding project." },
+  { id: "first-discovery", label: "Discovery", description: "Confirm a genetic discovery." },
+  { id: "first-employee", label: "Building a Team", description: "Hire your first specialist." },
+  { id: "first-customer-order", label: "Commercial Grower", description: "Fulfil your first customer order." },
+  { id: "reputation-75", label: "Trusted Nursery", description: "Reach 75 reputation." },
+  { id: "first-facility", label: "Better Infrastructure", description: "Upgrade a facility." },
+  { id: "research-100", label: "Research Milestone", description: "Accumulate 100 research points." },
+  { id: "first-corm", label: "Corm Collector", description: "Successfully harvest a corm." },
+  { id: "first-batch", label: "Batch Scientist", description: "Complete a multi-cross breeding batch." },
+  { id: "first-prestige", label: "Legacy Studio", description: "Prestige your studio for the first time." },
+];
+function earnedAchievements(state: GameState): string[] {
+  const earned: string[] = [];
+  if (state.specimens.length >= 1) earned.push("first-specimen");
+  if (state.specimens.length >= 5) earned.push("five-specimens");
+  if (state.specimens.some((item) => item.lastObservedDay !== undefined)) earned.push("first-observation");
+  if (state.breedingProjects.length >= 1) earned.push("first-breeding-project");
+  if (state.specimens.some((item) => item.discovered)) earned.push("first-discovery");
+  if ((state.staffState.employees ?? []).length >= 1) earned.push("first-employee");
+  if (state.customerOrders.some((order) => order.status === "fulfilled")) earned.push("first-customer-order");
+  if (state.reputation >= 75) earned.push("reputation-75");
+  if (state.facilityLevels.propagationBench + state.facilityLevels.environmentalController + state.analysisEquipmentLevel > 0) earned.push("first-facility");
+  if (state.research >= 100) earned.push("research-100");
+  if (state.specimens.some((item) => item.lastCormHarvestYear !== undefined)) earned.push("first-corm");
+  if (state.breedingProjects.filter((project) => project.status === "active").length >= 2) earned.push("first-batch");
+  if (state.prestigeCount > 0) earned.push("first-prestige");
+  return earned;
 }
 const MAX_LEDGER_ENTRIES = 500;
 const result = (state: GameState, ok: boolean, message: string, extra: Partial<ActionResult> = {}): ActionResult => {
@@ -63,10 +95,11 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
     }
     next = { ...state, cash, financeArrears, financialStatus: financeArrears > 0 ? "arrears" : "solvent", ledger: entries.slice(-MAX_LEDGER_ENTRIES) };
   }
+  if (ok) next = { ...next, achievements: [...new Set([...(next.achievements ?? []), ...earnedAchievements(next)])] };
   return { state: next, ok, message, ...extra };
 };
 export function createGameState(seed = "j2grows-new-game"): GameState {
-  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), facilityCondition: 100, staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent", customerOrders: [], reputation: 50 };
+  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), facilityCondition: 100, staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent", customerOrders: [], reputation: 50, achievements: [], prestigePoints: 0, prestigeCount: 0 };
 }
 function valueOf(specimen: Specimen): number {
   const plant = findSpecies(specimen.speciesId);
@@ -114,7 +147,7 @@ export function observeSpecimen(state: GameState, id: string): ActionResult {
   const genetics = observePlant(record, specimen.variegation, state.researchUnlocks.includes("mutation-screening") && state.analysisEquipmentLevel > 0);
   const updated = { ...specimen, genetics, lastObservedDay: state.day, discovered: Boolean(specimen.discovered || genetics.research.mutations.some(m => m.detected)) };
   updated.value = valueOf(updated);
-  const researchGain = 2 + (state.researchUnlocks.includes("field-notes") ? 1 : 0) + (state.researchUnlocks.includes("genetic-baseline") ? 1 : 0) + Math.min(3, state.staffState.employees.filter((employee) => employee.role === "research-technician" && employee.morale >= 20).length);
+  const researchGain = 2 + (state.researchUnlocks.includes("field-notes") ? 1 : 0) + (state.researchUnlocks.includes("genetic-baseline") ? 1 : 0) + Math.min(3, state.prestigePoints ?? 0) + Math.min(3, state.staffState.employees.filter((employee) => employee.role === "research-technician" && employee.morale >= 20).length);
   return result({ ...state, research: state.research + researchGain, specimens: state.specimens.map(s => s.id === id ? updated : s) }, true, "Observation recorded for " + specimen.nickname + " (" + researchGain + " research points).");
 }
 export function analyseSpecimen(state: GameState, id: string): ActionResult {
@@ -258,6 +291,44 @@ export function repayLoan(state: GameState, amount: number): ActionResult {
   const repayment = Math.min(Math.floor(amount), state.financeDebt);
   if (state.cash < repayment) return result(state, false, "Not enough available cash for this loan repayment.");
   return result({ ...state, cash: state.cash - repayment, financeDebt: state.financeDebt - repayment }, true, "Loan repayment: £" + repayment + ".");
+}
+export function prestigeStudio(state: GameState): ActionResult {
+  const fulfilledOrders = state.customerOrders.filter((order) => order.status === "fulfilled").length;
+  const completedCrosses = state.breedingProjects.filter((project) => project.status === "completed").length;
+  const collectionValue = state.specimens.reduce((sum, specimen) => sum + Math.max(0, specimen.value), 0);
+  const score = Math.floor(state.research / 100) + completedCrosses + fulfilledOrders * 2 + Math.floor(collectionValue / 500);
+  if (score < 3) return result(state, false, "Prestige requires at least three legacy score points from research, completed crosses, customer orders, and collection value.");
+  const reward = Math.max(1, Math.floor(score / 3));
+  const next: GameState = {
+    ...state,
+    version: 1,
+    simulationSeed: state.simulationSeed + "-prestige-" + (state.prestigeCount + 1),
+    savedAt: Date.now(),
+    offlineProgressEnabled: false,
+    specimens: [],
+    breedingProjects: [],
+    cash: STARTING_CASH,
+    research: 0,
+    day: 1,
+    projectStarted: false,
+    analysisTargetSpecimenId: undefined,
+    analysisStartedDay: undefined,
+    analysisEquipmentLevel: 0,
+    greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT },
+    researchUnlocks: [],
+    facilityLevels: normalizeFacilityLevels(),
+    facilityCondition: 100,
+    staffState: { ...DEFAULT_STAFF_STATE, employees: [] },
+    ledger: [],
+    financeArrears: 0,
+    financeDebt: 0,
+    financialStatus: "solvent",
+    customerOrders: [],
+    reputation: 50,
+    prestigePoints: (state.prestigePoints ?? 0) + reward,
+    prestigeCount: state.prestigeCount + 1,
+  };
+  return result(next, true, "Studio prestige complete. You earned " + reward + " permanent prestige point(s); your next studio gains extra research from observations.");
 }
 export function liquidateAssets(state: GameState): ActionResult {
   if ((state.financeArrears ?? 0) <= 0 && (state.financeDebt ?? 0) <= 0) return result(state, false, "Voluntary liquidation is only available while financial obligations remain.");
