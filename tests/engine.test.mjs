@@ -507,3 +507,17 @@ test("facility upgrades require the matching research unlock", () => {
   assert.equal(upgraded.ok, true);
   assert.equal(upgraded.state.facilityLevels.propagationBench, 1);
 });
+
+
+test("active mutation analysis and breeding reservations cannot overlap", () => {
+  const one = purchasePlant(createGameState("reservation-conflict"), species[0]);
+  const two = purchasePlant(one.state, species[0]);
+  const ready = { ...two.state, specimens: two.state.specimens.map((item) => ({ ...item, stage: "Breeding-ready", health: 100 })) };
+  const analysis = startMutationAnalysis(ready, ready.specimens[0].id);
+  assert.equal(analysis.ok, true);
+  assert.equal(startBreeding(analysis.state, ready.specimens[0].id, ready.specimens[1].id).ok, false);
+  const breeding = startBreeding(ready, ready.specimens[0].id, ready.specimens[1].id);
+  assert.equal(breeding.ok, true);
+  assert.equal(startMutationAnalysis(breeding.state, ready.specimens[0].id).ok, false);
+  assert.equal(propagatePlant(breeding.state, ready.specimens[0].id, "tissue-culture").ok, false);
+});
