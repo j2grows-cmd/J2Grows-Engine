@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -403,4 +403,32 @@ test("batch breeding requires its unlock and starts multiple independent crosses
   const locked = startBatchBreeding({ ...state, researchUnlocks: [] }, pairs);
   assert.equal(locked.ok, false);
   assert.equal(locked.state.breedingProjects.length, 0);
+});
+
+
+test("achievements persist and prestige exchanges accumulated progress for a permanent research bonus", () => {
+  const bought = purchasePlant(createGameState("achievement-prestige"), species[0]);
+  assert.ok(bought.state.achievements.includes("first-specimen"));
+  assert.ok(ACHIEVEMENTS.some((achievement) => achievement.id === "first-specimen"));
+  const legacy = { ...bought.state, research: 300 };
+  assert.equal(getPrestigeScore(legacy), 3);
+  const prestige = prestigeStudio(legacy);
+  assert.equal(prestige.ok, true);
+  assert.equal(prestige.state.day, 1);
+  assert.equal(prestige.state.specimens.length, 0);
+  assert.equal(prestige.state.research, 0);
+  assert.equal(prestige.state.prestigeCount, 1);
+  assert.equal(prestige.state.prestigePoints, 1);
+  assert.ok(prestige.state.achievements.includes("first-prestige"));
+  const newPlant = purchasePlant(prestige.state, species[0]);
+  const observed = observeSpecimen(newPlant.state, newPlant.state.specimens[0].id);
+  assert.equal(observed.state.research, 3);
+});
+
+test("prestige cannot be triggered before the legacy score threshold", () => {
+  const state = createGameState("prestige-too-early");
+  const result = prestigeStudio(state);
+  assert.equal(result.ok, false);
+  assert.equal(result.state.day, state.day);
+  assert.equal(result.state.prestigeCount, 0);
 });
