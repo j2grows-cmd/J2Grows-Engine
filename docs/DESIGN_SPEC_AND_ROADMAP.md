@@ -103,20 +103,20 @@ The following staged foundations have now been committed directly to `main`:
 - **Integrity:** annual corm harvest tracking; dead/zero-health propagation and sale guards.
 - **Save safety:** live-format validation and normalization; versioned save metadata; rotating backups; corrupt-save preservation; restore-last-valid-backup UI; finance, staff, shipment, and progression defaults during recovery.
 - **Finance:** transaction ledger, weekly staff/facility charges, arrears, automatic arrears repayment from incoming cash, capped loans, weekly loan interest, repayment controls, and voluntary liquidation of unprotected/unreserved living specimens.
-- **Market:** deterministic time-varying quotes by species and rarity, with conservative market-adjusted buyback offers.
-- **Plant health:** pest/disease pressure, treatment actions, and care-consistency affecting daily health.
+- **Market:** deterministic time-varying quotes by species and rarity, local stock-saturation discounts, and market-adjusted buyback offers.
+- **Plant health:** species-level catalogue light/humidity suitability, pest/disease pressure and same-location transmission, treatment actions, quarantine release rules, and care-consistency affecting daily health.
 - **Facilities:** condition wear, degraded environmental-control effectiveness, maintenance actions, and maintenance-technician mitigation.
 - **Workforce:** role-based hiring and dismissal, weekly wages, experience, morale, care/research/reputation effects, and preventive-maintenance effects.
 - **Commercial operations:** global supplier regions, freight and transit times, shipment collection/quarantine loads, weekly customer orders, fulfilment, deadlines, and reputation consequences.
-- **Progression:** batch breeding unlock/effect, research-node bonuses, persistent achievements, and a prestige reset with permanent observation-research bonuses.
+- **Progression:** research-gated facility upgrades and genetic analysis, batch breeding, research-node bonuses, persistent achievements, and a prestige reset with permanent observation-research bonuses.
 - **Offline and scale:** opt-in offline replay through the normal daily engine, capped at 14 days; regression coverage for a 10,000-specimen daily simulation.
 - **Verification:** GitHub Actions runs typecheck, production build, and the full Node test suite on every push to `main`.
 
 ### Still outstanding before calling the full design complete
 
-- True long-form species-specific biology with substrate/moisture, temperature, airflow, watering schedules, and explicit treatment diagnosis.
+- True long-form species-specific biology with substrate/moisture, temperature, airflow, watering schedules, and expertise-gated treatment diagnosis.
 - Disease/pest transmission between neighbouring specimens and a richer quarantine workflow.
-- Supplier reputation, customs/import compliance, supplier reliability and payment terms.
+- Supplier reputation, customs/import compliance, variable supplier reliability and payment terms.
 - A deeper multi-product nursery inventory, competitor supply/demand, auction clearing, wholesale contracts, and licensing.
 - More complete staffing schedules, specialisms, workload, recruitment history, and automation maintenance failures.
 - A unified, fully versioned migration path for every historic save schema; current live-save normalization is integrated, while the older separate schema normalizer still needs reconciliation.
