@@ -453,6 +453,10 @@ test("global supplier orders charge freight, arrive on schedule, and add quarant
   assert.equal(collected.state.specimens[0].diseaseLoad, 12);
   assert.equal(collected.state.specimens[0].quarantineUntilDay, collected.state.day + 3);
   assert.equal(collected.state.supplierShipments[0].status, "collected");
+  assert.equal(sellPlant(collected.state, collected.state.specimens[0].id).ok, false);
+  assert.equal(propagatePlant(collected.state, collected.state.specimens[0].id, "tissue-culture").ok, false);
+  const readyQuarantine = { ...collected.state, specimens: collected.state.specimens.map((item) => ({ ...item, stage: "Breeding-ready" })) };
+  assert.equal(startBreeding(readyQuarantine, readyQuarantine.specimens[0].id, readyQuarantine.specimens[1].id).ok, false);
   let released = collected.state;
   for (let i = 0; i < 3; i++) released = advanceGameDay(released).state;
   assert.equal(released.specimens[0].location, "Home greenhouse");
