@@ -289,7 +289,7 @@ export function collectSupplierShipment(state: GameState, shipmentId: string): A
   for (let index = 0; index < shipment.quantity; index++) {
     const id = createUniqueSpecimenId(used); used.add(id);
     const random = createEventRandom(state.simulationSeed, "shipment:" + shipment.id + ":" + index);
-    const specimen: Specimen = { id, speciesId: plant.id, nickname: plant.name + " · Import " + (index + 1), location: "Supplier quarantine · " + region.label, health: 85, stage: "Juvenile", stageDays: 0, value: 0, purchasePrice: shipment.unitCost + shipment.freight / shipment.quantity, protected: false, variegation: 0, discovered: false, pestLoad: region.biosecurityLoad, diseaseLoad: region.biosecurityLoad, genetics: createSpecimenGenetics(0, random) };
+    const specimen: Specimen = { id, speciesId: plant.id, nickname: plant.name + " · Import " + (index + 1), location: "Supplier quarantine · " + region.label, health: 85, stage: "Juvenile", stageDays: 0, value: 0, purchasePrice: shipment.unitCost + shipment.freight / shipment.quantity, protected: false, variegation: 0, discovered: false, pestLoad: region.biosecurityLoad, diseaseLoad: region.biosecurityLoad, quarantineUntilDay: state.day + 3, genetics: createSpecimenGenetics(0, random) };
     specimen.value = valueOf(specimen);
     children.push(specimen);
   }
@@ -445,11 +445,12 @@ export function advanceGameDay(state: GameState): ActionResult {
       if(mutation.category==="colour"){variegation=Math.min(100,Math.max(variegation,35+Math.round(random()*35)));genetics={...genetics,genetics:{...genetics.genetics,variegationPotential:Math.max(genetics.genetics.variegationPotential,variegation)}};}
       notices.push("Potential "+mutation.category+" mutation in "+s.nickname+".");
     }
-    let propagation=s.propagation,stage=s.stage,stageDays=s.stageDays??0,location=s.location;
+    let propagation=s.propagation,stage=s.stage,stageDays=s.stageDays??0,location=s.location,quarantineUntilDay=s.quarantineUntilDay;
     const species=findSpecies(s.speciesId), suitability=calculateSpeciesSuitability(species.latin,species.difficulty,{...environment,health}),condition=suitability<45?1.5:suitability<65?1.2:suitability>=85?.85:1,speciesFactor=speciesGrowthDurationFactor(species.latin,species.difficulty);
     if(propagation){const progress=advancePropagationPhase(propagation,suitability<45?2:suitability<65?1:0,state.facilityLevels.propagationBench);propagation=progress.propagation;if(progress.transition==="cutting-rooting")location="Propagation Bench · Rooting";else if(progress.transition==="rooting-new-growth")location="Propagation Bench · New Growth";else if(progress.transition==="corm-sprouting")location="Corm Nursery · Sprouting";else if(progress.transition==="propagation-established"){stage="Juvenile";stageDays=0;location="Greenhouse · Establishing";}if(propagation?.phase==="Sprouting")stage="Juvenile";}
     else{const progress=advanceEstablishedGrowthStage(stage,stageDays,health,speciesFactor,condition);stage=progress.stage;stageDays=progress.stageDays;if(progress.transition)notices.push(s.nickname+" advanced to "+stage+".");}
-    const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
+    if(location.startsWith("Supplier quarantine")&&quarantineUntilDay!==undefined&&day>=quarantineUntilDay&&pestLoad<30&&diseaseLoad<30){location="Home greenhouse";quarantineUntilDay=undefined;notices.push(s.nickname+" cleared supplier quarantine.");}
+    const updated:Specimen={...s,health,dead:health<=0,pestLoad,diseaseLoad,quarantineUntilDay,stage,stageDays,location,propagation,variegation,genetics:{...genetics,expression:variegation,environment:env}};updated.value=valueOf(updated);return updated;
   });
   const usedSpecimenIds = new Set(specimens.map((specimen) => specimen.id));
   let projects=state.breedingProjects.map(p=>({...p}));
