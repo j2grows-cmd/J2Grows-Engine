@@ -4,8 +4,8 @@ import { createEventRandom } from "./random.ts";
 import { assessCrossEligibility, createBreedingIdentity } from "./breeding.ts";
 import { calculateSpeciesSuitability, speciesGrowthDurationFactor } from "./species-growth.ts";
 import { advanceEstablishedGrowthStage, advancePropagationPhase, calculateDailyHealth } from "./simulation.ts";
-import { applyEnvironmentalController, canPurchaseFacilityUpgrade, nextFacilityUpgradeCost, normalizeFacilityLevels, type FacilityLevels, type FacilityName } from "./facilities.ts";
-import { advanceStaffDay, canStartStaffTraining, DEFAULT_STAFF_STATE, effectiveStaffCareCondition, startStaffTraining, STAFF_TRAINING_COST, type StaffState } from "./staff.ts";
+import { applyEnvironmentalController, canPurchaseFacilityUpgrade, nextFacilityUpgradeCost, normalizeFacilityLevels, weeklyFacilityOperatingCost, type FacilityLevels, type FacilityName } from "./facilities.ts";
+import { advanceStaffDay, canStartStaffTraining, DEFAULT_STAFF_STATE, effectiveStaffCareCondition, startStaffTraining, STAFF_TRAINING_COST, weeklyStaffOperatingCost, type StaffState } from "./staff.ts";
 import { canCreateOffset } from "./propagation-eligibility.ts";
 import { getSpeciesEconomy, STARTING_CASH, type RarityTier } from "./catalog.ts";
 import { analyseGenetics, createMutation, createSpecimenGenetics, growVariegation, observePlant, calculateSpecimenValue, DEFAULT_ENVIRONMENT, type PlantEnvironment, type SpecimenGenetics } from "./genetics.ts";
@@ -213,6 +213,17 @@ export function advanceGameDay(state: GameState): ActionResult {
   const finished=new Set(projects.filter(p=>p.status!=="active").map(p=>p.id));
   const unreserved=specimens.map(s=>s.reservedByProjectId&&finished.has(s.reservedByProjectId)?({...s,reservedByProjectId:undefined}):s);
   let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff};
+  if(day % 7 === 0){
+    const weeklyCost = weeklyStaffOperatingCost(staff) + weeklyFacilityOperatingCost(state.facilityLevels, state.analysisEquipmentLevel, state.researchUnlocks.includes("routine-automation"));
+    if(weeklyCost > 0){
+      const paid = Math.min(next.cash, weeklyCost);
+      const shortfall = weeklyCost - paid;
+      const balance = Math.max(0, next.cash - paid);
+      const entry: LedgerEntry = { id: state.simulationSeed + ":day:" + day + ":overheads", day, category: "operating-cost", description: "Weekly staff and facility operating costs", amount: -weeklyCost, balance };
+      next = { ...next, cash: balance, financeArrears: (next.financeArrears ?? 0) + shortfall, financialStatus: shortfall > 0 || (next.financeArrears ?? 0) > 0 ? "arrears" : "solvent", ledger: [...(next.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
+      notices.push("Weekly operating costs: £" + weeklyCost + (shortfall > 0 ? "; £" + shortfall + " added to arrears." : "."));
+    }
+  }
   if(state.projectStarted&&state.analysisStartedDay!==undefined&&day-state.analysisStartedDay>=3&&state.analysisTargetSpecimenId){
     const target=next.specimens.find(s=>s.id===state.analysisTargetSpecimenId);
     if(target&&!target.dead&&target.health>0){const record=target.genetics??createSpecimenGenetics(target.variegation),mutations=record.research.mutations.map(m=>({...m,detected:true,evidenceCount:Math.max(3,m.evidenceCount??0)})),updated={...target,mutationAnalysisCompleted:true,discovered:mutations.length>0,genetics:{...record,research:{...record.research,mutations}}};updated.value=valueOf(updated);next={...next,specimens:next.specimens.map(s=>s.id===target.id?updated:s),research:next.research+10};notices.push("Mutation Analysis completed for "+target.nickname+".");}
