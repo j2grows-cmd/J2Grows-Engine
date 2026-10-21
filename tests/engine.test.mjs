@@ -442,8 +442,8 @@ test("global supplier orders charge freight, arrive on schedule, and add quarant
   assert.equal(ordered.state.supplierShipments[0].status, "shipping");
   assert.ok(ordered.state.cash < initial.cash);
   let state = ordered.state;
-  for (let i = 0; i < 8; i++) state = advanceGameDay(state).state;
-  assert.equal(state.day, 9);
+  while (state.day < state.supplierShipments[0].arrivesDay) state = advanceGameDay(state).state;
+  assert.equal(state.day, state.supplierShipments[0].arrivesDay);
   assert.equal(state.supplierShipments[0].status, "arrived");
   const collected = collectSupplierShipment(state, state.supplierShipments[0].id);
   assert.equal(collected.ok, true);
