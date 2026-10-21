@@ -47,6 +47,12 @@ function ledgerCategory(message: string, amount: number): LedgerCategory {
 export const ACHIEVEMENTS: ReadonlyArray<{ id: string; label: string; description: string }> = [
   { id: "first-specimen", label: "First Leaf", description: "Acquire your first specimen." },
   { id: "five-specimens", label: "Growing Collection", description: "Register five specimens." },
+  { id: "ten-specimens", label: "A Crowded Greenhouse", description: "Register ten specimens." },
+  { id: "three-families", label: "Botanical Breadth", description: "Collect specimens from three plant families." },
+  { id: "five-genera", label: "Genus Explorer", description: "Collect specimens from five genera." },
+  { id: "rare-specimen", label: "Rare Find", description: "Acquire a Rare or higher rarity specimen." },
+  { id: "first-hybrid", label: "New Lineage", description: "Grow a plant from a completed breeding project." },
+  { id: "first-tissue-culture", label: "Micropropagation", description: "Establish your first tissue-culture specimen." },
   { id: "first-observation", label: "Field Researcher", description: "Record your first observation." },
   { id: "first-breeding-project", label: "Genetic Pioneer", description: "Start a breeding project." },
   { id: "first-discovery", label: "Discovery", description: "Confirm a genetic discovery." },
@@ -63,6 +69,13 @@ function earnedAchievements(state: GameState): string[] {
   const earned: string[] = [];
   if (state.specimens.length >= 1) earned.push("first-specimen");
   if (state.specimens.length >= 5) earned.push("five-specimens");
+  if (state.specimens.length >= 10) earned.push("ten-specimens");
+  const collectedSpecies = state.specimens.map((item) => findSpecies(item.speciesId));
+  if (new Set(collectedSpecies.map((plant) => plant.family)).size >= 3) earned.push("three-families");
+  if (new Set(collectedSpecies.map((plant) => plant.latin.split(" ")[0])).size >= 5) earned.push("five-genera");
+  if (collectedSpecies.some((plant) => ["Rare", "Very Rare", "Ultra Rare", "Mythic"].includes(plant.rarity))) earned.push("rare-specimen");
+  if (state.specimens.some((item) => (item.generation ?? 0) > 0)) earned.push("first-hybrid");
+  if (state.specimens.some((item) => item.propagation?.method === "tissue-culture")) earned.push("first-tissue-culture");
   if (state.specimens.some((item) => item.lastObservedDay !== undefined)) earned.push("first-observation");
   if (state.breedingProjects.length >= 1) earned.push("first-breeding-project");
   if (state.specimens.some((item) => item.discovered)) earned.push("first-discovery");
