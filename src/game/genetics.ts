@@ -22,6 +22,7 @@ export type PlantEnvironment = {
   humidity: number;
   health: number;
   temperature?: number;
+  substrateMoisture?: number;
   autoCare?: boolean;
   lightHours?: number;
 };
@@ -67,7 +68,7 @@ export type SpecimenGenetics = {
 };
 
 export const DEFAULT_ENVIRONMENT: PlantEnvironment = {
-  light: 65, nutrition: 65, humidity: 65, health: 100,
+  light: 65, nutrition: 65, humidity: 65, health: 100, temperature: 24, substrateMoisture: 55, lightHours: 12,
 };
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
