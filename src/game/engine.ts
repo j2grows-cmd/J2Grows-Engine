@@ -270,7 +270,7 @@ export function startMutationAnalysis(state: GameState,id: string): ActionResult
   return result({...state,cash:state.cash-25,projectStarted:true,analysisTargetSpecimenId:id,analysisStartedDay:state.day},true,"Mutation Analysis started for "+specimen.nickname+".");
 }
 export function advanceGameDay(state: GameState): ActionResult {
-  const day=state.day+1, staff=advanceStaffDay(state.staffState), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController), care=effectiveStaffCareCondition(environment,staff);
+  const day=state.day+1, staff=advanceStaffDay(state.staffState), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
   const notices:string[]=[];
   const specimens=state.specimens.map(s=>{
     if(s.dead||s.health<=0)return {...s,health:0,dead:true,value:0};
