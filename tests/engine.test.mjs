@@ -271,6 +271,7 @@ test("loans have a fixed cap, accrue weekly interest, and can be repaid", () => 
   for (let i = 0; i < 6; i++) state = advanceGameDay(state).state;
   assert.equal(state.day, 7);
   assert.equal(state.financeDebt, 102);
+  assert.equal(state.ledger.find((entry) => entry.category === "debt").cashImpact, 0);
   const repaid = repayLoan(state, 100);
   assert.equal(repaid.ok, true);
   assert.equal(repaid.state.financeDebt, 2);
