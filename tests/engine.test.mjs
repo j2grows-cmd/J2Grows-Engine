@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createGameState, purchasePlant, sellPlant, analyseSpecimen, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS, orderSupplierStock, collectSupplierShipment, upgradeFacility } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
+import { createEventRandom } from "../src/game/random.ts";
 
 test("new game is headless and starts with the intended economy", () => {
   const state = createGameState("test-seed");
@@ -533,4 +534,44 @@ test("controlled-environment research reduces breeding failure risk", () => {
   assert.equal(plain.ok, true);
   assert.equal(improved.ok, true);
   assert.ok(improved.state.breedingProjects[0].failureChance <= plain.state.breedingProjects[0].failureChance);
+});
+
+
+test("mature Alocasia death can leave a viable salvaged corm", () => {
+  const plant = species.find((candidate) => candidate.latin.split(" ")[0].toLowerCase() === "alocasia");
+  assert.ok(plant);
+  let seed = "";
+  for (let index = 0; index < 1000; index++) {
+    const candidate = "salvage-seed-" + index;
+    if (createEventRandom(candidate, "death-salvage:2:" + plant.id)() < 0.35) { seed = candidate; break; }
+  }
+  assert.ok(seed, "should find a deterministic salvage seed");
+  const bought = purchasePlant(createGameState(seed), plant);
+  const state = {
+    ...bought.state,
+    simulationSeed: seed,
+    greenhouseEnvironment: { light: 0, nutrition: 0, humidity: 0, health: 0 },
+    specimens: bought.state.specimens.map((item) => ({ ...item, health: 1, stage: "Mature", value: 10 })),
+  };
+  const advanced = advanceGameDay(state);
+  assert.equal(advanced.state.specimens.find((item) => item.id === state.specimens[0].id).dead, true);
+  assert.equal(advanced.state.specimens.length, 2);
+  const salvage = advanced.state.specimens.find((item) => item.id !== state.specimens[0].id);
+  assert.match(salvage.nickname, /salvaged corm/i);
+  assert.equal(salvage.propagation.method, "corm");
+});
+
+test("mature Alocasia death can also result in no viable salvage material", () => {
+  const plant = species.find((candidate) => candidate.latin.split(" ")[0].toLowerCase() === "alocasia");
+  let seed = "";
+  for (let index = 0; index < 1000; index++) {
+    const candidate = "no-salvage-seed-" + index;
+    if (createEventRandom(candidate, "death-salvage:2:" + plant.id)() >= 0.35) { seed = candidate; break; }
+  }
+  assert.ok(seed);
+  const bought = purchasePlant(createGameState(seed), plant);
+  const state = { ...bought.state, simulationSeed: seed, greenhouseEnvironment: { light: 0, nutrition: 0, humidity: 0, health: 0 }, specimens: bought.state.specimens.map((item) => ({ ...item, health: 1, stage: "Mature", value: 10 })) };
+  const advanced = advanceGameDay(state);
+  assert.equal(advanced.state.specimens.length, 1);
+  assert.match(advanced.message, /without viable propagation material/i);
 });
