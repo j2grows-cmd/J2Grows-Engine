@@ -24,7 +24,7 @@ function preferredLightFromDescription(description: string | undefined, fallback
   const value = (description ?? "").toLowerCase();
   if (/low\s*(to|-)\s*medium/.test(value)) return 42;
   if (/medium\s*(to|-)\s*bright/.test(value)) return 58;
-  if (value.includes("direct")) return 82;
+  if (/\bdirect\b/.test(value)) return 82;
   if (value.includes("low")) return 35;
   if (value.includes("medium")) return 50;
   if (value.includes("bright")) return 68;
