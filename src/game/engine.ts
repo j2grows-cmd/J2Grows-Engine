@@ -344,6 +344,7 @@ export function borrowFunds(state: GameState, amount: number): ActionResult {
 export function repayLoan(state: GameState, amount: number): ActionResult {
   if (!Number.isFinite(amount) || amount <= 0) return result(state, false, "Enter a positive repayment amount.");
   if ((state.financeDebt ?? 0) <= 0) return result(state, false, "There is no outstanding loan balance.");
+  if ((state.financeArrears ?? 0) > 0) return result(state, false, "Clear operating-cost arrears before repaying loan principal.");
   const repayment = Math.min(Math.floor(amount), state.financeDebt);
   if (state.cash < repayment) return result(state, false, "Not enough available cash for this loan repayment.");
   return result({ ...state, cash: state.cash - repayment, financeDebt: state.financeDebt - repayment }, true, "Loan repayment: £" + repayment + ".");
