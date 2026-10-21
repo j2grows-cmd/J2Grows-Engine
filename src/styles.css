@@ -87,3 +87,15 @@
 .warning{padding:12px 14px;border:1px solid #9e70444d;border-radius:6px;background:#9e704414;color:#e2bc91;font-size:12px;line-height:1.6}
 .finance-panel .detail-stats{margin:16px 0}
 @media(max-width:700px){.transaction-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}.transaction-row>small{grid-column:1/-1}.transaction-row strong{grid-column:2;grid-row:1}}
+
+
+/* Customer order desk */
+.order-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.order-card{display:flex;flex-direction:column;gap:12px;min-width:0;padding:18px;border:1px solid var(--line,#293026);border-radius:8px;background:linear-gradient(145deg,#151a12,#10130e)}
+.order-card h3{font-size:16px;margin:0}
+.order-card p{font-size:12px;color:var(--muted,#8c9684);margin:0}
+.order-card .action-row{align-items:center;justify-content:space-between;margin-top:auto}
+.order-card .action-row small{font-size:10px;color:var(--muted,#8c9684)}
+.status.positive{color:#b5d58a}
+.status.negative{color:#e4a08c}
+@media(max-width:700px){.order-grid{grid-template-columns:1fr}}
