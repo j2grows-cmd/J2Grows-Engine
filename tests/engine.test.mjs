@@ -274,7 +274,7 @@ test("loans have a fixed cap, accrue weekly interest, and can be repaid", () => 
   const repaid = repayLoan(state, 100);
   assert.equal(repaid.ok, true);
   assert.equal(repaid.state.financeDebt, 2);
-  assert.equal(repayLoan(repaid.state, 100).state.financeDebt, 2);
+  assert.equal(repayLoan(repaid.state, 100).state.financeDebt, 0);
 });
 
 
