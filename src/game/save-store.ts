@@ -110,9 +110,15 @@ export function rotateAndWriteSave(
     if (raw.length > MAX_SAVE_BYTES) return { ok: false, reason: "Save exceeds the 5 MB safety limit." };
     const current = storage.getItem(key);
     if (current !== null) {
-      const previousBackup = storage.getItem(key + ".backup");
-      if (previousBackup !== null) storage.setItem(key + ".backup.previous", previousBackup);
-      storage.setItem(key + ".backup", current);
+      let currentIsValid = false;
+      try { currentIsValid = normalizeGameSave(JSON.parse(current), now).state !== null; } catch { currentIsValid = false; }
+      if (currentIsValid) {
+        const previousBackup = storage.getItem(key + ".backup");
+        if (previousBackup !== null) storage.setItem(key + ".backup.previous", previousBackup);
+        storage.setItem(key + ".backup", current);
+      } else {
+        preserveRecoveryPayload(storage, key, current);
+      }
     }
     storage.setItem(key, raw);
     return { ok: true };
