@@ -187,7 +187,8 @@ export function advanceGameDay(state: GameState): ActionResult {
   let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff};
   if(state.projectStarted&&state.analysisStartedDay!==undefined&&day-state.analysisStartedDay>=3&&state.analysisTargetSpecimenId){
     const target=next.specimens.find(s=>s.id===state.analysisTargetSpecimenId);
-    if(target){const record=target.genetics??createSpecimenGenetics(target.variegation),mutations=record.research.mutations.map(m=>({...m,detected:true,evidenceCount:Math.max(3,m.evidenceCount??0)})),updated={...target,mutationAnalysisCompleted:true,discovered:mutations.length>0,genetics:{...record,research:{...record.research,mutations}}};updated.value=valueOf(updated);next={...next,specimens:next.specimens.map(s=>s.id===target.id?updated:s),research:next.research+10};notices.push("Mutation Analysis completed for "+target.nickname+".");}
+    if(target&&!target.dead&&target.health>0){const record=target.genetics??createSpecimenGenetics(target.variegation),mutations=record.research.mutations.map(m=>({...m,detected:true,evidenceCount:Math.max(3,m.evidenceCount??0)})),updated={...target,mutationAnalysisCompleted:true,discovered:mutations.length>0,genetics:{...record,research:{...record.research,mutations}}};updated.value=valueOf(updated);next={...next,specimens:next.specimens.map(s=>s.id===target.id?updated:s),research:next.research+10};notices.push("Mutation Analysis completed for "+target.nickname+".");}
+    else notices.push("Mutation Analysis was cancelled because its target is no longer available; no research reward was granted.");
     next={...next,projectStarted:false,analysisTargetSpecimenId:undefined,analysisStartedDay:undefined};
   }
   return result(next,true,"Advanced to day "+day+"."+ (notices.length?" "+notices.join(" "):""));
