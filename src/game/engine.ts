@@ -292,11 +292,14 @@ export function repayLoan(state: GameState, amount: number): ActionResult {
   if (state.cash < repayment) return result(state, false, "Not enough available cash for this loan repayment.");
   return result({ ...state, cash: state.cash - repayment, financeDebt: state.financeDebt - repayment }, true, "Loan repayment: £" + repayment + ".");
 }
-export function prestigeStudio(state: GameState): ActionResult {
+export function getPrestigeScore(state: GameState): number {
   const fulfilledOrders = state.customerOrders.filter((order) => order.status === "fulfilled").length;
   const completedCrosses = state.breedingProjects.filter((project) => project.status === "completed").length;
   const collectionValue = state.specimens.reduce((sum, specimen) => sum + Math.max(0, specimen.value), 0);
-  const score = Math.floor(state.research / 100) + completedCrosses + fulfilledOrders * 2 + Math.floor(collectionValue / 500);
+  return Math.floor(state.research / 100) + completedCrosses + fulfilledOrders * 2 + Math.floor(collectionValue / 500);
+}
+export function prestigeStudio(state: GameState): ActionResult {
+  const score = getPrestigeScore(state);
   if (score < 3) return result(state, false, "Prestige requires at least three legacy score points from research, completed crosses, customer orders, and collection value.");
   const reward = Math.max(1, Math.floor(score / 3));
   const next: GameState = {
