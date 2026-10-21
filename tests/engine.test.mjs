@@ -589,3 +589,20 @@ test("pest and disease diagnosis requires field-notes research or horticulturist
   assert.equal(expert.state.specimens[0].pestDiagnosed, true);
   assert.equal(expert.state.specimens[0].diseaseDiagnosed, true);
 });
+
+
+test("loan principal cannot be repaid while operating-cost arrears remain outstanding", () => {
+  const state = {
+    ...createGameState("arrears-before-loan"),
+    cash: 100,
+    financeDebt: 50,
+    financeArrears: 10,
+    financialStatus: "arrears",
+    ledger: [{ id: "opening", day: 1, category: "other", description: "Opening balance", amount: 0, balance: 100 }],
+  };
+  const result = repayLoan(state, 25);
+  assert.equal(result.ok, false);
+  assert.equal(result.state.cash, 100);
+  assert.equal(result.state.financeDebt, 50);
+  assert.equal(result.state.financeArrears, 10);
+});
