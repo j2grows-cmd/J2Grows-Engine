@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createGameState, purchasePlant, sellPlant, advanceGameDay } from "../src/game/engine.ts";
 import { species } from "../src/data.ts";
+import { getMarketOffer } from "../src/game/market.ts";
 import { normalizeGameSave, rotateAndWriteSave, serializeGameSave } from "../src/game/save-store.ts";
 
 function memoryStorage() {
@@ -97,7 +98,7 @@ test("positive cash flow automatically settles outstanding operating-cost arrear
   assert.equal(sold.ok, true);
   assert.equal(sold.state.financeArrears, 0);
   assert.equal(sold.state.financialStatus, "solvent");
-  assert.equal(sold.state.cash, 70);
+  assert.equal(sold.state.cash, 50 + getMarketOffer(30, species[0].id, species[0].rarity, state.day) - 10);
   assert.equal(sold.state.ledger.at(-1).description, "Automatic repayment of outstanding operating-cost arrears");
   assert.equal(sold.state.ledger.at(-1).amount, -10);
 });
