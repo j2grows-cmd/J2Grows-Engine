@@ -167,3 +167,24 @@ test("completed breeding projects release both parents and create one offspring"
   assert.equal(completed.state.specimens.length, 3);
   assert.ok(completed.state.specimens.filter((specimen) => specimen.id === a.id || specimen.id === b.id).every((specimen) => !specimen.reservedByProjectId));
 });
+
+
+test("mutation analysis cancels without reward when its target dies", () => {
+  const bought = purchasePlant(createGameState("analysis-target-dies"), species[0] ?? findSpecies("alocasia-polly"));
+  const id = bought.state.specimens[0].id;
+  const started = startMutationAnalysis(bought.state, id);
+  assert.equal(started.ok, true);
+  const doomed = {
+    ...started.state,
+    day: started.state.day + 2,
+    specimens: started.state.specimens.map((specimen) =>
+      specimen.id === id ? { ...specimen, health: 0, dead: true, value: 0 } : specimen
+    ),
+  };
+  const result = advanceGameDay(doomed);
+  assert.equal(result.state.projectStarted, false);
+  assert.equal(result.state.analysisTargetSpecimenId, undefined);
+  assert.equal(result.state.research, 0);
+  assert.equal(result.state.specimens.find((specimen) => specimen.id === id).mutationAnalysisCompleted, undefined);
+  assert.match(result.message, /cancelled/i);
+});
