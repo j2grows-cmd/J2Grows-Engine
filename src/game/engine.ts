@@ -37,17 +37,17 @@ function ledgerCategory(message: string, amount: number): LedgerCategory {
   return amount === 0 ? "other" : "other";
 }
 const MAX_LEDGER_ENTRIES = 500;
-const result = (previous: GameState, ok: boolean, message: string, extra: Partial<ActionResult> = {}): ActionResult => {
-  const next = extra.state ?? previous;
-  const delta = Math.round((next.cash - previous.cash) * 100) / 100;
-  let state = next;
+const result = (state: GameState, ok: boolean, message: string, extra: Partial<ActionResult> = {}): ActionResult => {
+  let next = state;
+  const last = state.ledger?.[state.ledger.length - 1];
+  const baseline = last ? last.balance : STARTING_CASH;
+  const delta = Math.round((state.cash - baseline) * 100) / 100;
   if (ok && delta !== 0) {
-    const entry: LedgerEntry = { id: previous.simulationSeed + ":" + next.day + ":" + (previous.ledger?.length ?? 0), day: next.day, category: ledgerCategory(message, delta), description: message, amount: delta, balance: next.cash };
-    state = { ...next, ledger: [...(next.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
+    const entry: LedgerEntry = { id: state.simulationSeed + ":" + state.day + ":" + (state.ledger?.length ?? 0), day: state.day, category: ledgerCategory(message, delta), description: message, amount: delta, balance: state.cash };
+    next = { ...state, ledger: [...(state.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
   }
-  return { state, ok, message, ...extra };
+  return { state: next, ok, message, ...extra };
 };
-
 export function createGameState(seed = "j2grows-new-game"): GameState {
   return { version: 1, simulationSeed: seed, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financialStatus: "solvent" };
 }
