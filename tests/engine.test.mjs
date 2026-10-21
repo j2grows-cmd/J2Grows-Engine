@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -386,4 +386,21 @@ test("facility condition degrades weekly and paid maintenance restores controlle
   assert.equal(maintained.state.cash, state.cash - 25);
   const noEquipment = maintainFacilities(createGameState("no-equipment"));
   assert.equal(noEquipment.ok, false);
+});
+
+
+test("batch breeding requires its unlock and starts multiple independent crosses atomically", () => {
+  let state = { ...createGameState("batch-breeding"), cash: 1000, research: 500, researchUnlocks: ["batch-breeding", "selective-breeding"] };
+  state.ledger = [{ id: "opening", day: 1, category: "other", description: "Opening balance", amount: 0, balance: 1000 }];
+  const plant = species.find((candidate) => candidate.latin.split(" ")[0].toLowerCase() === "alocasia") ?? species[0];
+  for (let i = 0; i < 4; i++) state = purchasePlant(state, plant).state;
+  state = { ...state, specimens: state.specimens.map((item) => ({ ...item, stage: "Breeding-ready", health: 100 })) };
+  const pairs = [[state.specimens[0].id, state.specimens[1].id], [state.specimens[2].id, state.specimens[3].id]];
+  const started = startBatchBreeding(state, pairs);
+  assert.equal(started.ok, true);
+  assert.equal(started.state.breedingProjects.filter((project) => project.status === "active").length, 2);
+  assert.ok(started.state.specimens.every((item) => item.reservedByProjectId));
+  const locked = startBatchBreeding({ ...state, researchUnlocks: [] }, pairs);
+  assert.equal(locked.ok, false);
+  assert.equal(locked.state.breedingProjects.length, 0);
 });
