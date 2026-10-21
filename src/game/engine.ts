@@ -155,6 +155,7 @@ export function analyseSpecimen(state: GameState, id: string): ActionResult {
   const specimen = state.specimens.find(s => s.id === id);
   if (!specimen) return result(state, false, "Specimen not found.");
   if (specimen.dead || specimen.health <= 0) return result(state, false, "Dead specimens cannot be analysed.");
+  if (!state.researchUnlocks.includes("genetic-baseline")) return result(state, false, "Unlock Genetic Baseline research before analysing a specimen.");
   const record = specimen.genetics ?? createSpecimenGenetics(specimen.variegation);
   if (record.research.analysisLevel >= 3) return result(state, false, "All analysis levels are complete.");
   if (record.research.observationCount < 3) return result(state, false, "Record at least three observations first.");
@@ -411,7 +412,7 @@ export function startMutationAnalysis(state: GameState,id: string): ActionResult
   return result({...state,cash:state.cash-25,projectStarted:true,analysisTargetSpecimenId:id,analysisStartedDay:state.day},true,"Mutation Analysis started for "+specimen.nickname+".");
 }
 export function advanceGameDay(state: GameState): ActionResult {
-  const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController,Math.min(100,state.facilityCondition+(state.researchUnlocks.includes("controlled-environment")?15:0))), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
+  const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment={...applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController,Math.min(100,state.facilityCondition+(state.researchUnlocks.includes("controlled-environment")?15:0))),autoCare:state.researchUnlocks.includes("routine-automation")&&state.staffState.routineCareEnabled&&state.facilityCondition>=40}, care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
   const notices:string[]=[];
   const locationPestPressure = new Map<string, number>();
   const locationDiseasePressure = new Map<string, number>();
