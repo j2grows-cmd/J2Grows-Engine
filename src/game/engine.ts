@@ -83,7 +83,7 @@ export function propagatePlant(state: GameState, parentId: string, method: Propa
   const parent = state.specimens.find(s => s.id === parentId);
   if (!parent) return result(state, false, "Parent specimen not found.");
   const plant = findSpecies(parent.speciesId), genus = plant.latin.split(" ")[0].toLowerCase();
-  const allowed = !parent.dead && !parent.reservedByProjectId && ((method === "division" && canCreateOffset(parent.stage)) || method === "tissue-culture" || (method === "cutting" && ["monstera","philodendron","anthurium"].includes(genus) && ["Mature","Breeding-ready"].includes(parent.stage)) || (method === "corm" && genus === "alocasia" && ["Mature","Breeding-ready"].includes(parent.stage)));
+  const allowed = !parent.dead && parent.health > 0 && !parent.reservedByProjectId && ((method === "division" && canCreateOffset(parent.stage)) || method === "tissue-culture" || (method === "cutting" && ["monstera","philodendron","anthurium"].includes(genus) && ["Mature","Breeding-ready"].includes(parent.stage)) || (method === "corm" && genus === "alocasia" && ["Mature","Breeding-ready"].includes(parent.stage)));
   if (!allowed) return result(state, false, "This specimen is not eligible for that propagation method.");
   if (method === "corm" && parent.lastCormHarvestYear === Math.floor((state.day - 1) / 365)) return result(state, false, "This Alocasia has already yielded a corm this year.");
   const rarity = (getSpeciesEconomy(plant.id)?.rarity ?? getSpeciesEconomy(plant.name)?.rarity ?? plant.rarity) as RarityTier;
@@ -104,6 +104,7 @@ export function propagatePlant(state: GameState, parentId: string, method: Propa
     child.value=valueOf(child); children.push(child);
   }
   let updatedParent = parent;
+  if (method==="corm") { updatedParent={...parent,lastCormHarvestYear:Math.floor((state.day - 1) / 365)}; }
   if (method==="cutting") { updatedParent={...parent,stage:"Juvenile",stageDays:0,health:Math.max(35,parent.health-15*count),location:"Recovery · Greenhouse",value:0}; updatedParent.value=valueOf(updatedParent); }
   return result({...state,cash:state.cash-totalCost,specimens:[...state.specimens.filter(s=>s.id!==parentId),updatedParent,...children]},true,details.label+" propagation started.",{createdSpecimenIds:children.map(s=>s.id)});
 }
