@@ -6,7 +6,7 @@ export function createUniqueSpecimenId(
   existingIds: Iterable<string> = [],
   randomUUID: () => string = () => globalThis.crypto.randomUUID(),
 ): string {
-  const used = new Set(existingIds);
+  const used = existingIds instanceof Set ? existingIds : new Set(existingIds);
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const id = randomUUID();
     if (isUuid(id) && !used.has(id)) return id;
