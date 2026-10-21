@@ -12,7 +12,7 @@ import { analyseGenetics, createMutation, createSpecimenGenetics, growVariegatio
 import { applyTraitTargeting, breedingDurationDays, breedingFailureChance, calculateBreedingCost, calculateTargetedBreedingCost, calculateTargetedFailureChance, inheritTraits, mutationOccurs, type BreedingProject, type TargetableTrait, RESEARCH_TREE, unlockResearch } from "./progression.ts";
 
 export type PropagationMethod = "cutting" | "division" | "corm" | "tissue-culture";
-export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "treatment" | "other";
+export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "breeding" | "research" | "facility" | "staff" | "operating-cost" | "treatment" | "debt" | "other";
 export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number };
 export type FinancialStatus = "solvent" | "arrears";
 export type GameState = {
@@ -21,7 +21,7 @@ export type GameState = {
   analysisTargetSpecimenId?: string; analysisStartedDay?: number; analysisEquipmentLevel: number;
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
   facilityLevels: FacilityLevels; staffState: StaffState;
-  ledger: LedgerEntry[]; financeArrears: number; financialStatus: FinancialStatus;
+  ledger: LedgerEntry[]; financeArrears: number; financeDebt: number; financialStatus: FinancialStatus;
 };
 export type ActionResult = { state: GameState; ok: boolean; message: string; createdSpecimenIds?: string[] };
 function ledgerCategory(message: string, amount: number): LedgerCategory {
@@ -32,6 +32,7 @@ function ledgerCategory(message: string, amount: number): LedgerCategory {
   if (text.includes("facility") || text.includes("upgrade") || text.includes("controller") || text.includes("workstation") || text.includes("bench")) return "facility";
   if (text.includes("training") || text.includes("staff")) return "staff";
   if (text.includes("treatment") || text.includes("treated")) return "treatment";
+  if (text.includes("loan") || text.includes("debt") || text.includes("interest")) return "debt";
   if (text.includes("sold")) return "plant-sale";
   if (text.includes("acquired")) return "plant-purchase";
   if (text.includes("operating cost") || text.includes("wage") || text.includes("overhead")) return "operating-cost";
@@ -60,7 +61,7 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
   return { state: next, ok, message, ...extra };
 };
 export function createGameState(seed = "j2grows-new-game"): GameState {
-  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financialStatus: "solvent" };
+  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financeDebt: 0, financialStatus: "solvent" };
 }
 function valueOf(specimen: Specimen): number {
   const plant = findSpecies(specimen.speciesId);
@@ -183,6 +184,20 @@ export function setGreenhouseEnvironment(state: GameState, input: Partial<PlantE
   const environment={...state.greenhouseEnvironment,light:clamp(input.light,state.greenhouseEnvironment.light),nutrition:clamp(input.nutrition,state.greenhouseEnvironment.nutrition),humidity:clamp(input.humidity,state.greenhouseEnvironment.humidity),health:clamp(input.health,state.greenhouseEnvironment.health)};
   return result({...state,greenhouseEnvironment:environment},true,"Greenhouse environment updated.");
 }
+export const MAX_LOAN_BALANCE = 1000;
+export const LOAN_INTEREST_RATE_PER_WEEK = 0.02;
+export function borrowFunds(state: GameState, amount: number): ActionResult {
+  if (![50, 100, 250, 500].includes(amount)) return result(state, false, "Choose a supported loan amount (£50, £100, £250, or £500).");
+  if ((state.financeDebt ?? 0) + amount > MAX_LOAN_BALANCE) return result(state, false, "This loan would exceed the £1,000 credit limit.");
+  return result({ ...state, cash: state.cash + amount, financeDebt: (state.financeDebt ?? 0) + amount }, true, "Loan drawdown received: £" + amount + ".");
+}
+export function repayLoan(state: GameState, amount: number): ActionResult {
+  if (!Number.isFinite(amount) || amount <= 0) return result(state, false, "Enter a positive repayment amount.");
+  if ((state.financeDebt ?? 0) <= 0) return result(state, false, "There is no outstanding loan balance.");
+  const repayment = Math.min(Math.floor(amount), state.financeDebt);
+  if (state.cash < repayment) return result(state, false, "Not enough available cash for this loan repayment.");
+  return result({ ...state, cash: state.cash - repayment, financeDebt: state.financeDebt - repayment }, true, "Loan repayment: £" + repayment + ".");
+}
 export type TreatmentTarget = "pests" | "disease" | "both";
 export function treatSpecimen(state: GameState, id: string, target: TreatmentTarget): ActionResult {
   const specimen = state.specimens.find((item) => item.id === id);
@@ -255,6 +270,13 @@ export function advanceGameDay(state: GameState): ActionResult {
   let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff};
   if(day % 7 === 0){
     const weeklyCost = weeklyStaffOperatingCost(staff) + weeklyFacilityOperatingCost(state.facilityLevels, state.analysisEquipmentLevel, state.researchUnlocks.includes("routine-automation"));
+    if((next.financeDebt ?? 0) > 0){
+      const interest = Math.max(1, Math.ceil(next.financeDebt * LOAN_INTEREST_RATE_PER_WEEK));
+      const balance = next.financeDebt + interest;
+      const entry: LedgerEntry = { id: state.simulationSeed + ":day:" + day + ":loan-interest", day, category: "debt", description: "Weekly loan interest accrued", amount: -interest, balance: next.cash };
+      next = { ...next, financeDebt: balance, ledger: [...(next.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
+      notices.push("Loan interest accrued: £" + interest + ".");
+    }
     if(weeklyCost > 0){
       const paid = Math.min(next.cash, weeklyCost);
       const shortfall = weeklyCost - paid;
