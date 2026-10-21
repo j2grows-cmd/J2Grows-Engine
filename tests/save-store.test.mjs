@@ -102,3 +102,16 @@ test("positive cash flow automatically settles outstanding operating-cost arrear
   assert.equal(sold.state.ledger.at(-1).description, "Automatic repayment of outstanding operating-cost arrears");
   assert.equal(sold.state.ledger.at(-1).amount, -10);
 });
+
+
+test("writing over a corrupt primary save preserves the prior valid backup", () => {
+  const storage = memoryStorage();
+  const validBackup = serializeGameSave(createGameState("prior-valid-save"), 100);
+  storage.setItem("game.backup", validBackup);
+  storage.setItem("game", "{not-json");
+  const result = rotateAndWriteSave(storage, "game", createGameState("fresh-save"), 200);
+  assert.equal(result.ok, true);
+  assert.equal(storage.getItem("game.backup"), validBackup);
+  assert.equal(storage.getItem("game.recovery"), "{not-json");
+  assert.equal(JSON.parse(storage.getItem("game")).simulationSeed, "fresh-save");
+});
