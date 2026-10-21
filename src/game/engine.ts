@@ -43,8 +43,18 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
   const baseline = last ? last.balance : STARTING_CASH;
   const delta = Math.round((state.cash - baseline) * 100) / 100;
   if (ok && delta !== 0) {
-    const entry: LedgerEntry = { id: state.simulationSeed + ":" + state.day + ":" + (state.ledger?.length ?? 0), day: state.day, category: ledgerCategory(message, delta), description: message, amount: delta, balance: state.cash };
-    next = { ...state, ledger: [...(state.ledger ?? []), entry].slice(-MAX_LEDGER_ENTRIES) };
+    const entries: LedgerEntry[] = [...(state.ledger ?? [])];
+    const category = ledgerCategory(message, delta);
+    entries.push({ id: state.simulationSeed + ":" + state.day + ":" + entries.length, day: state.day, category, description: message, amount: delta, balance: state.cash });
+    let cash = state.cash;
+    let financeArrears = state.financeArrears ?? 0;
+    if (delta > 0 && financeArrears > 0) {
+      const repayment = Math.min(delta, financeArrears);
+      cash = Math.max(0, cash - repayment);
+      financeArrears = Math.max(0, financeArrears - repayment);
+      entries.push({ id: state.simulationSeed + ":" + state.day + ":" + entries.length, day: state.day, category: "operating-cost", description: "Automatic repayment of outstanding operating-cost arrears", amount: -repayment, balance: cash });
+    }
+    next = { ...state, cash, financeArrears, financialStatus: financeArrears > 0 ? "arrears" : "solvent", ledger: entries.slice(-MAX_LEDGER_ENTRIES) };
   }
   return { state: next, ok, message, ...extra };
 };
