@@ -107,7 +107,7 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
       financeArrears = Math.max(0, financeArrears - repayment);
       entries.push({ id: state.simulationSeed + ":" + state.day + ":" + entries.length, day: state.day, category: "operating-cost", description: "Automatic repayment of outstanding operating-cost arrears", amount: -repayment, balance: cash, cashImpact: -repayment });
     }
-    next = { ...state, cash, financeArrears, financialStatus: financeArrears > 0 ? "arrears" : "solvent", ledger: entries.slice(-MAX_LEDGER_ENTRIES) };
+    next = { ...state, cash, financeArrears, financialStatus: financeArrears >= 100 && cash === 0 ? "insolvent" : financeArrears > 0 ? "arrears" : "solvent", ledger: entries.slice(-MAX_LEDGER_ENTRIES) };
   }
   if (ok) next = { ...next, achievements: [...new Set([...(next.achievements ?? []), ...earnedAchievements(next)])] };
   return { state: next, ok, message, ...extra };
