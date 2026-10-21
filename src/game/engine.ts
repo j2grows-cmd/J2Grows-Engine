@@ -237,6 +237,8 @@ export function maintainFacilities(state: GameState): ActionResult {
   return result({ ...state, cash: state.cash - cost, facilityCondition: Math.min(100, state.facilityCondition + 50) }, true, "Facility maintenance completed for £" + cost + ".");
 }
 export function upgradeFacility(state: GameState,name: FacilityName): ActionResult {
+  const requiredResearch: Record<FacilityName, string> = { "Propagation bench": "propagation-science", "Environmental controller": "controlled-environment", "Analysis workstation": "genetic-baseline" };
+  if (!state.researchUnlocks.includes(requiredResearch[name])) return result(state, false, "Unlock " + requiredResearch[name].replaceAll("-", " ") + " research before upgrading this facility.");
   const cost=nextFacilityUpgradeCost(name,state.facilityLevels,state.analysisEquipmentLevel);
   if(cost===null)return result(state,false,"Facility is max level or unavailable.");
   if(!canPurchaseFacilityUpgrade(name,state.facilityLevels,state.analysisEquipmentLevel,state.cash))return result(state,false,"Not enough funds for "+name+".");
