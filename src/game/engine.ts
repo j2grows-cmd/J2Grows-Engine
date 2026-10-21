@@ -70,7 +70,7 @@ function earnedAchievements(state: GameState): string[] {
   if (state.specimens.length >= 1) earned.push("first-specimen");
   if (state.specimens.length >= 5) earned.push("five-specimens");
   if (state.specimens.length >= 10) earned.push("ten-specimens");
-  const collectedSpecies = state.specimens.map((item) => findSpecies(item.speciesId));
+  const collectedSpecies = [...new Set(state.specimens.map((item) => item.speciesId))].map((speciesId) => findSpecies(speciesId));
   if (new Set(collectedSpecies.map((plant) => plant.family)).size >= 3) earned.push("three-families");
   if (new Set(collectedSpecies.map((plant) => plant.latin.split(" ")[0])).size >= 5) earned.push("five-genera");
   if (collectedSpecies.some((plant) => ["Rare", "Very Rare", "Ultra Rare", "Mythic"].includes(plant.rarity))) earned.push("rare-specimen");
