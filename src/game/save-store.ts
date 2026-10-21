@@ -76,6 +76,7 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
     staffState: normalizeStaffState(record(value.staffState) ? value.staffState : DEFAULT_STAFF_STATE),
     ledger,
     financeArrears: finite(value.financeArrears, 0, 0, 1_000_000_000),
+    financeDebt: finite(value.financeDebt, 0, 0, 1_000_000_000),
     financialStatus,
   } as unknown as GameState;
   return { state, repaired };
