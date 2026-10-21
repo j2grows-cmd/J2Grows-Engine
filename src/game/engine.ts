@@ -16,7 +16,7 @@ export type LedgerCategory = "plant-purchase" | "plant-sale" | "propagation" | "
 export type LedgerEntry = { id: string; day: number; category: LedgerCategory; description: string; amount: number; balance: number };
 export type FinancialStatus = "solvent" | "arrears";
 export type GameState = {
-  version: 1; saveFormatVersion?: number; savedAt?: number; simulationSeed: string; specimens: Specimen[]; breedingProjects: BreedingProject[];
+  version: 1; saveFormatVersion?: number; savedAt?: number; offlineProgressEnabled: boolean; simulationSeed: string; specimens: Specimen[]; breedingProjects: BreedingProject[];
   cash: number; research: number; day: number; projectStarted: boolean;
   analysisTargetSpecimenId?: string; analysisStartedDay?: number; analysisEquipmentLevel: number;
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
@@ -59,7 +59,7 @@ const result = (state: GameState, ok: boolean, message: string, extra: Partial<A
   return { state: next, ok, message, ...extra };
 };
 export function createGameState(seed = "j2grows-new-game"): GameState {
-  return { version: 1, simulationSeed: seed, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financialStatus: "solvent" };
+  return { version: 1, simulationSeed: seed, savedAt: Date.now(), offlineProgressEnabled: false, specimens: [], breedingProjects: [], cash: STARTING_CASH, research: 0, day: 1, projectStarted: false, analysisEquipmentLevel: 0, greenhouseEnvironment: { ...DEFAULT_ENVIRONMENT }, researchUnlocks: [], facilityLevels: normalizeFacilityLevels(), staffState: { ...DEFAULT_STAFF_STATE }, ledger: [], financeArrears: 0, financialStatus: "solvent" };
 }
 function valueOf(specimen: Specimen): number {
   const plant = findSpecies(specimen.speciesId);
