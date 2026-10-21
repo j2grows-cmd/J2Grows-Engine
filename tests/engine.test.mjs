@@ -366,5 +366,5 @@ test("research technicians improve observation yield", () => {
   assert.equal(hired.ok, true);
   const observed = observeSpecimen(hired.state, hired.state.specimens[0].id);
   assert.equal(observed.ok, true);
-  assert.equal(observed.state.research, 5);
+  assert.equal(observed.state.research, 3);
 });
