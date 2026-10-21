@@ -73,3 +73,17 @@
 /* A real catalogue photo replaces the CSS-drawn placeholder; transparent PNGs must not show both. */
 .plant-art.image-loaded .halo,.plant-art.image-loaded .stem,.plant-art.image-loaded .leaf,.plant-art.image-loaded .caption{display:none}
 .plant-art.image-loaded{background:#11170f}
+
+
+/* Financial ledger, operating alerts, and recovery controls */
+.transaction-list{display:grid;gap:0;margin-top:14px}
+.transaction-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:18px;align-items:center;padding:13px 0;border-top:1px solid var(--line,#293026)}
+.transaction-row>div{display:grid;gap:5px;min-width:0}
+.transaction-row b{font-size:12px;font-weight:550}
+.transaction-row small{font-size:10px;color:var(--muted,#8c9684)}
+.transaction-row strong{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.transaction-row .negative{color:#e4a08c}
+.transaction-row .positive{color:#b5d58a}
+.warning{padding:12px 14px;border:1px solid #9e70444d;border-radius:6px;background:#9e704414;color:#e2bc91;font-size:12px;line-height:1.6}
+.finance-panel .detail-stats{margin:16px 0}
+@media(max-width:700px){.transaction-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}.transaction-row>small{grid-column:1/-1}.transaction-row strong{grid-column:2;grid-row:1}}
