@@ -70,6 +70,8 @@ export function normalizeSpecimens(value: unknown): SpecimenRecovery {
       id: raw.id, speciesId: raw.speciesId, nickname: raw.nickname.slice(0, 120), location: raw.location.slice(0, 160),
       health, stage: raw.stage as Specimen["stage"], value: valueAmount, protected: raw.protected, variegation,
       ...(typeof raw.pestLoad === "number" && Number.isFinite(raw.pestLoad) ? { pestLoad: finite(raw.pestLoad, 0, 0, 100) } : {}),
+      ...(typeof raw.pestDiagnosed === "boolean" ? { pestDiagnosed: raw.pestDiagnosed } : {}),
+      ...(typeof raw.diseaseDiagnosed === "boolean" ? { diseaseDiagnosed: raw.diseaseDiagnosed } : {}),
       ...(typeof raw.diseaseLoad === "number" && Number.isFinite(raw.diseaseLoad) ? { diseaseLoad: finite(raw.diseaseLoad, 0, 0, 100) } : {}),
       ...(typeof raw.quarantineUntilDay === "number" && Number.isFinite(raw.quarantineUntilDay) ? { quarantineUntilDay: finite(raw.quarantineUntilDay, 1, 1, 1_000_000_000, true) } : {}),
       ...(typeof raw.dead === "boolean" ? { dead: raw.dead } : {}),
