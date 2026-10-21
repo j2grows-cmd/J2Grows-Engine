@@ -118,3 +118,11 @@
 .achievement small{font-size:10px;line-height:1.5;color:var(--muted,#8c9684)}
 @media(max-width:900px){.achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.achievement-grid{grid-template-columns:1fr}}
+
+
+/* Global sourcing and import pipeline */
+.supplier-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}
+.supplier-actions select{min-width:0;width:100%;padding:9px 10px;border:1px solid var(--line,#293026);border-radius:5px;background:#0d110b;color:var(--text,#e8ebdf);font-size:10px}
+.shipment-list{display:grid;gap:0;margin-top:12px}
+.shipment-list .transaction-row{grid-template-columns:minmax(0,1fr) auto auto}
+@media(max-width:700px){.supplier-actions{grid-template-columns:1fr}.shipment-list .transaction-row{grid-template-columns:minmax(0,1fr) auto}.shipment-list .transaction-row>button,.shipment-list .transaction-row>small{grid-column:1/-1}}
