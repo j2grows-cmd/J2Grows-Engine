@@ -22,8 +22,8 @@ export function getSpeciesCareProfile(scientificName: string, difficulty: "Easy"
 
 function preferredLightFromDescription(description: string | undefined, fallback: number): number {
   const value = (description ?? "").toLowerCase();
-  if (/low\\s*(to|-)\\s*medium/.test(value)) return 42;
-  if (/medium\\s*(to|-)\\s*bright/.test(value)) return 58;
+  if (/low\s*(to|-)\s*medium/.test(value)) return 42;
+  if (/medium\s*(to|-)\s*bright/.test(value)) return 58;
   if (value.includes("direct")) return 82;
   if (value.includes("low")) return 35;
   if (value.includes("medium")) return 50;
@@ -31,7 +31,7 @@ function preferredLightFromDescription(description: string | undefined, fallback
   return fallback;
 }
 function preferredHumidityFromDescription(description: string | undefined, fallback: number): number {
-  const match = (description ?? "").match(/(\\d{2,3})\\s*[–-]\\s*(\\d{2,3})\\s*%?/);
+  const match = (description ?? "").match(/(\d{2,3})\s*[–-]\s*(\d{2,3})\s*%?/);
   if (!match) return fallback;
   const low = Number(match[1]), high = Number(match[2]);
   if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high > 100 || low > high) return fallback;
