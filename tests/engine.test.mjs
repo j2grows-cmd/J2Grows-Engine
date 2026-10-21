@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS, orderSupplierStock, collectSupplierShipment } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, analyseSpecimen, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets, fulfillCustomerOrder, hireEmployee, dismissEmployee, maintainFacilities, startBatchBreeding, prestigeStudio, getPrestigeScore, ACHIEVEMENTS, orderSupplierStock, collectSupplierShipment } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 import { getMarketOffer } from "../src/game/market.ts";
 
@@ -462,4 +462,36 @@ test("supplier orders reject unsupported quantities and insufficient funds", () 
   const state = createGameState("supplier-guards");
   assert.equal(orderSupplierStock(state, species[0].id, 6, "uk").ok, false);
   assert.equal(orderSupplierStock({ ...state, cash: 1 }, species[0].id, 1, "americas").ok, false);
+});
+
+
+test("genetic analysis is gated by Genetic Baseline research", () => {
+  const bought = purchasePlant(createGameState("analysis-research-gate"), species[0]);
+  const specimen = bought.state.specimens[0];
+  const ready = {
+    ...bought.state,
+    research: 100,
+    specimens: bought.state.specimens.map((item) => item.id === specimen.id ? {
+      ...item,
+      genetics: { ...item.genetics, research: { ...item.genetics.research, points: 25, observationCount: 3 } },
+    } : item),
+  };
+  assert.equal(analyseSpecimen(ready, specimen.id).ok, false);
+  const notes = unlockResearchNode(ready, "field-notes");
+  const baseline = unlockResearchNode(notes.state, "genetic-baseline");
+  assert.equal(analyseSpecimen(baseline.state, specimen.id).ok, true);
+});
+
+test("routine automation only activates after its research unlock and requires maintained care", () => {
+  const bought = purchasePlant(createGameState("automation-research"), species[0]);
+  const baseDay = advanceGameDay(bought.state).state;
+  assert.equal(baseDay.specimens[0].genetics.environment.autoCare, false);
+  let state = { ...bought.state, research: 200 };
+  state = unlockResearchNode(state, "field-notes").state;
+  state = unlockResearchNode(state, "controlled-environment").state;
+  state = unlockResearchNode(state, "routine-automation").state;
+  const automated = advanceGameDay(state).state;
+  assert.equal(automated.specimens[0].genetics.environment.autoCare, true);
+  const degraded = advanceGameDay({ ...state, facilityCondition: 20 }).state;
+  assert.equal(degraded.specimens[0].genetics.environment.autoCare, false);
 });
