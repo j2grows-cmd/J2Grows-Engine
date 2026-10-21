@@ -24,3 +24,10 @@ test("purchase prices and buyback offers remain integer and safely handle invali
   assert.equal(getMarketPrice(Number.NaN, "market-test", "Common", 1), 1);
   assert.equal(getMarketOffer(-20, "market-test", "Common", 1), 0);
 });
+
+
+test("excess local stock lowers buyback offers", () => {
+  const normal = getMarketOffer(100, "market-saturation", "Rare", 50, 0);
+  const saturated = getMarketOffer(100, "market-saturation", "Rare", 50, 10);
+  assert.ok(saturated < normal);
+});
