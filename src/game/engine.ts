@@ -509,7 +509,7 @@ export function advanceGameDay(state: GameState): ActionResult {
     notices.push(overdue.length + " customer order(s) expired; reputation declined.");
   }
   if (day % 7 === 0) {
-    const available = next.specimens.filter((item) => !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !item.propagation);
+    const available = next.specimens.filter((item) => !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !(next.projectStarted && next.analysisTargetSpecimenId === item.id) && !item.propagation);
     const candidates = available.filter((item) => !next.customerOrders.some((order) => order.status === "open" && order.speciesId === item.speciesId));
     if (candidates.length > 0) {
       const random = createEventRandom(state.simulationSeed, "day:" + day + ":customer-order");
