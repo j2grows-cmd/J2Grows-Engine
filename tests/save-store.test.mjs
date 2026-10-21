@@ -74,6 +74,7 @@ test("weekly staff costs are charged once on day seven and unpaid costs become a
   assert.equal(state.day, 7);
   assert.equal(state.cash, 92);
   assert.equal(state.ledger.filter((entry) => entry.category === "operating-cost").length, 1);
+  assert.equal(state.ledger.find((entry) => entry.category === "operating-cost").cashImpact, -8);
   assert.equal(state.financeArrears, 0);
 
   let poor = { ...createGameState("arrears"), cash: 2, ledger: [{ id: "opening", day: 1, category: "other", description: "Opening balance", amount: 0, balance: 2 }] };
@@ -81,6 +82,8 @@ test("weekly staff costs are charged once on day seven and unpaid costs become a
   assert.equal(poor.cash, 0);
   assert.equal(poor.financeArrears, 6);
   assert.equal(poor.financialStatus, "arrears");
+  assert.equal(poor.ledger.find((entry) => entry.category === "operating-cost").amount, -8);
+  assert.equal(poor.ledger.find((entry) => entry.category === "operating-cost").cashImpact, -2);
 });
 
 test("positive cash flow automatically settles outstanding operating-cost arrears", () => {
