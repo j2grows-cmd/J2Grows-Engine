@@ -259,6 +259,11 @@ export function dismissEmployee(state: GameState, employeeId: string): ActionRes
   if (!employee) return result(state, false, "Staff member not found.");
   return result({ ...state, staffState: { ...state.staffState, employees: employees.filter((item) => item.id !== employeeId) } }, true, employee.name + " dismissed; future wages have been removed.");
 }
+export function setRoutineCareEnabled(state: GameState, enabled: boolean): ActionResult {
+  if (typeof enabled !== "boolean") return result(state, false, "Choose whether routine care should be enabled.");
+  if (state.staffState.routineCareEnabled === enabled) return result(state, false, "Routine care is already " + (enabled ? "enabled." : "disabled."));
+  return result({ ...state, staffState: { ...state.staffState, routineCareEnabled: enabled } }, true, "Routine care " + (enabled ? "enabled; weekly assistant wages apply." : "disabled; manual care has no assistant wage."));
+}
 export function beginStaffTraining(state: GameState): ActionResult {
   if(!canStartStaffTraining(state.cash,state.staffState))return result(state,false,"Staff training is unavailable or unaffordable.");
   const staff=startStaffTraining(state.staffState);if(!staff)return result(state,false,"Staff training cannot be started.");
