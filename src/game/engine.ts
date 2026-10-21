@@ -5,7 +5,7 @@ import { assessCrossEligibility, createBreedingIdentity } from "./breeding.ts";
 import { calculateSpeciesSuitability, speciesGrowthDurationFactor } from "./species-growth.ts";
 import { advanceEstablishedGrowthStage, advancePropagationPhase, calculateDailyHealth } from "./simulation.ts";
 import { applyEnvironmentalController, canPurchaseFacilityUpgrade, nextFacilityUpgradeCost, normalizeFacilityLevels, weeklyFacilityOperatingCost, type FacilityLevels, type FacilityName } from "./facilities.ts";
-import { advanceStaffDay, canStartStaffTraining, DEFAULT_STAFF_STATE, effectiveStaffCareCondition, startStaffTraining, STAFF_TRAINING_COST, weeklyStaffOperatingCost, type StaffState } from "./staff.ts";
+import { advanceStaffDay, canStartStaffTraining, DEFAULT_STAFF_STATE, effectiveStaffCareCondition, startStaffTraining, STAFF_TRAINING_COST, weeklyStaffOperatingCost, STAFF_ROLE_DETAILS, MAX_EMPLOYEES, type StaffRole, type StaffState } from "./staff.ts";
 import { canCreateOffset } from "./propagation-eligibility.ts";
 import { getSpeciesEconomy, STARTING_CASH, type RarityTier } from "./catalog.ts";
 import { getMarketOffer, getMarketPrice } from "./market.ts";
@@ -34,7 +34,7 @@ function ledgerCategory(message: string, amount: number): LedgerCategory {
   if (text.includes("breeding")) return "breeding";
   if (text.includes("research") || text.includes("analysis") || text.includes("observation") || text.includes("mutation")) return "research";
   if (text.includes("facility") || text.includes("upgrade") || text.includes("controller") || text.includes("workstation") || text.includes("bench")) return "facility";
-  if (text.includes("training") || text.includes("staff")) return "staff";
+  if (text.includes("training") || text.includes("staff") || text.includes("hired") || text.includes("dismissed")) return "staff";
   if (text.includes("treatment") || text.includes("treated")) return "treatment";
   if (text.includes("loan") || text.includes("debt") || text.includes("interest")) return "debt";
   if (text.includes("sold")) return "plant-sale";
@@ -114,7 +114,8 @@ export function observeSpecimen(state: GameState, id: string): ActionResult {
   const genetics = observePlant(record, specimen.variegation, state.researchUnlocks.includes("mutation-screening") && state.analysisEquipmentLevel > 0);
   const updated = { ...specimen, genetics, lastObservedDay: state.day, discovered: Boolean(specimen.discovered || genetics.research.mutations.some(m => m.detected)) };
   updated.value = valueOf(updated);
-  return result({ ...state, research: state.research + 2, specimens: state.specimens.map(s => s.id === id ? updated : s) }, true, "Observation recorded for " + specimen.nickname + ".");
+  const researchGain = 2 + Math.min(3, state.staffState.employees.filter((employee) => employee.role === "research-technician" && employee.morale >= 20).length);
+  return result({ ...state, research: state.research + researchGain, specimens: state.specimens.map(s => s.id === id ? updated : s) }, true, "Observation recorded for " + specimen.nickname + " (" + researchGain + " research points).");
 }
 export function analyseSpecimen(state: GameState, id: string): ActionResult {
   const specimen = state.specimens.find(s => s.id === id);
@@ -186,6 +187,21 @@ export function upgradeFacility(state: GameState,name: FacilityName): ActionResu
   if(name==="Propagation bench")levels.propagationBench++;else if(name==="Environmental controller")levels.environmentalController++;else analysis++;
   return result({...state,cash:state.cash-cost,facilityLevels:levels,analysisEquipmentLevel:analysis},true,name+" upgraded.");
 }
+export function hireEmployee(state: GameState, role: StaffRole): ActionResult {
+  const details = STAFF_ROLE_DETAILS[role];
+  if (!details) return result(state, false, "Choose a valid staff role.");
+  const employees = state.staffState.employees ?? [];
+  if (employees.length >= MAX_EMPLOYEES) return result(state, false, "The studio has reached its staff capacity.");
+  if (state.cash < details.hireCost) return result(state, false, "Not enough funds to hire a " + details.label.toLowerCase() + ".");
+  const employee = { id: state.simulationSeed + "-staff-" + state.day + "-" + (employees.length + 1) + "-" + state.specimens.length, role, name: details.label + " " + (employees.filter((item) => item.role === role).length + 1), weeklyWage: details.weeklyWage, morale: 70, experienceDays: 0 };
+  return result({ ...state, cash: state.cash - details.hireCost, staffState: { ...state.staffState, employees: [...employees, employee] } }, true, employee.name + " hired for £" + details.hireCost + " with weekly wages of £" + details.weeklyWage + ".");
+}
+export function dismissEmployee(state: GameState, employeeId: string): ActionResult {
+  const employees = state.staffState.employees ?? [];
+  const employee = employees.find((item) => item.id === employeeId);
+  if (!employee) return result(state, false, "Staff member not found.");
+  return result({ ...state, staffState: { ...state.staffState, employees: employees.filter((item) => item.id !== employeeId) } }, true, employee.name + " dismissed; future wages have been removed.");
+}
 export function beginStaffTraining(state: GameState): ActionResult {
   if(!canStartStaffTraining(state.cash,state.staffState))return result(state,false,"Staff training is unavailable or unaffordable.");
   const staff=startStaffTraining(state.staffState);if(!staff)return result(state,false,"Staff training cannot be started.");
@@ -205,7 +221,7 @@ export function fulfillCustomerOrder(state: GameState, orderId: string): ActionR
   const soldIds = new Set(stock.slice(0, order.quantity).map((item) => item.id));
   const revenue = order.unitPrice * order.quantity;
   const orders = state.customerOrders.map((item) => item.id === orderId ? { ...item, status: "fulfilled" as const } : item);
-  return result({ ...state, cash: state.cash + revenue, specimens: state.specimens.filter((item) => !soldIds.has(item.id)), customerOrders: orders, reputation: Math.min(100, state.reputation + 2) }, true, "Customer order fulfilled: " + order.quantity + " × " + findSpecies(order.speciesId).name + " for £" + revenue + ".");
+  return result({ ...state, cash: state.cash + revenue, specimens: state.specimens.filter((item) => !soldIds.has(item.id)), customerOrders: orders, reputation: Math.min(100, state.reputation + 2 + (state.staffState.employees.some((employee) => employee.role === "nursery-manager" && employee.morale >= 20) ? 1 : 0)) }, true, "Customer order fulfilled: " + order.quantity + " × " + findSpecies(order.speciesId).name + " for £" + revenue + ".");
 }
 export const MAX_LOAN_BALANCE = 1000;
 export const LOAN_INTEREST_RATE_PER_WEEK = 0.02;
@@ -270,15 +286,17 @@ export function startMutationAnalysis(state: GameState,id: string): ActionResult
   return result({...state,cash:state.cash-25,projectStarted:true,analysisTargetSpecimenId:id,analysisStartedDay:state.day},true,"Mutation Analysis started for "+specimen.nickname+".");
 }
 export function advanceGameDay(state: GameState): ActionResult {
-  const day=state.day+1, staff=advanceStaffDay(state.staffState), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
+  const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
   const notices:string[]=[];
   const specimens=state.specimens.map(s=>{
     if(s.dead||s.health<=0)return {...s,health:0,dead:true,value:0};
     const random=createEventRandom(state.simulationSeed,"day:"+day+":specimen:"+s.id);
     const pestRandom=createEventRandom(state.simulationSeed,"day:"+day+":pests:"+s.id);
     const diseaseRandom=createEventRandom(state.simulationSeed,"day:"+day+":disease:"+s.id);
-    const pestRisk=environment.humidity<35?0.012:0.001;
-    const diseaseRisk=environment.humidity>88&&environment.nutrition<50?0.015:environment.humidity>94?0.005:0.0005;
+    const maintenanceStaff=staff.employees.filter((employee)=>employee.role==="maintenance-technician"&&employee.morale>=20).length;
+    const maintenanceFactor=Math.max(0.4,1-maintenanceStaff*0.2);
+    const pestRisk=(environment.humidity<35?0.012:0.001)*maintenanceFactor;
+    const diseaseRisk=(environment.humidity>88&&environment.nutrition<50?0.015:environment.humidity>94?0.005:0.0005)*maintenanceFactor;
     const pestLoad=Math.min(100,(s.pestLoad??0)+(pestRandom()<pestRisk?10:0));
     const diseaseLoad=Math.min(100,(s.diseaseLoad??0)+(diseaseRandom()<diseaseRisk?10:0));
     const health=Math.max(0,calculateDailyHealth(s.health,environment.autoCare?Math.max(60,care):care)-Math.ceil(pestLoad/25)-Math.ceil(diseaseLoad/20));
