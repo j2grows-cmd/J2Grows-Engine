@@ -1,14 +1,14 @@
 import type { PlantEnvironment } from "./genetics.ts";
 
-export type SpeciesCareProfile = { preferredLight: number; preferredHumidity: number; preferredNutrition: number; preferredTemperature: number; preferredSubstrateMoisture: number; preferredLightHours: number; baseGrowthFactor: number };
+export type SpeciesCareProfile = { preferredLight: number; preferredHumidity: number; preferredNutrition: number; preferredTemperature: number; preferredSubstrateMoisture: number; preferredAirflow: number; preferredPH: number; preferredLightHours: number; baseGrowthFactor: number };
 
 const PROFILES: Record<string, SpeciesCareProfile> = {
-  alocasia: { preferredLight: 62, preferredHumidity: 78, preferredNutrition: 70, preferredTemperature: 24, preferredSubstrateMoisture: 62, preferredLightHours: 12, baseGrowthFactor: 1.08 },
-  anthurium: { preferredLight: 52, preferredHumidity: 78, preferredNutrition: 68, preferredTemperature: 23, preferredSubstrateMoisture: 55, preferredLightHours: 12, baseGrowthFactor: 1.12 },
-  monstera: { preferredLight: 66, preferredHumidity: 65, preferredNutrition: 62, preferredTemperature: 24, preferredSubstrateMoisture: 50, preferredLightHours: 12, baseGrowthFactor: 0.96 },
-  philodendron: { preferredLight: 60, preferredHumidity: 68, preferredNutrition: 65, preferredTemperature: 23, preferredSubstrateMoisture: 50, preferredLightHours: 12, baseGrowthFactor: 0.98 },
-  begonia: { preferredLight: 48, preferredHumidity: 68, preferredNutrition: 58, preferredTemperature: 22, preferredSubstrateMoisture: 58, preferredLightHours: 11, baseGrowthFactor: 1.02 },
-  default: { preferredLight: 60, preferredHumidity: 65, preferredNutrition: 65, preferredTemperature: 23, preferredSubstrateMoisture: 50, preferredLightHours: 12, baseGrowthFactor: 1 },
+  alocasia: { preferredLight: 62, preferredHumidity: 78, preferredNutrition: 70, preferredTemperature: 24, preferredSubstrateMoisture: 62, preferredAirflow: 45, preferredPH: 6, preferredLightHours: 12, baseGrowthFactor: 1.08 },
+  anthurium: { preferredLight: 52, preferredHumidity: 78, preferredNutrition: 68, preferredTemperature: 23, preferredSubstrateMoisture: 55, preferredAirflow: 40, preferredPH: 5.6, preferredLightHours: 12, baseGrowthFactor: 1.12 },
+  monstera: { preferredLight: 66, preferredHumidity: 65, preferredNutrition: 62, preferredTemperature: 24, preferredSubstrateMoisture: 50, preferredAirflow: 55, preferredPH: 6.2, preferredLightHours: 12, baseGrowthFactor: 0.96 },
+  philodendron: { preferredLight: 60, preferredHumidity: 68, preferredNutrition: 65, preferredTemperature: 23, preferredSubstrateMoisture: 50, preferredAirflow: 50, preferredPH: 6, preferredLightHours: 12, baseGrowthFactor: 0.98 },
+  begonia: { preferredLight: 48, preferredHumidity: 68, preferredNutrition: 58, preferredTemperature: 22, preferredSubstrateMoisture: 58, preferredAirflow: 40, preferredPH: 5.8, preferredLightHours: 11, baseGrowthFactor: 1.02 },
+  default: { preferredLight: 60, preferredHumidity: 65, preferredNutrition: 65, preferredTemperature: 23, preferredSubstrateMoisture: 50, preferredAirflow: 45, preferredPH: 6, preferredLightHours: 12, baseGrowthFactor: 1 },
 };
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
@@ -55,7 +55,9 @@ export function calculateSpeciesSuitability(
   const temperature = 100 - Math.abs((environment.temperature ?? profile.preferredTemperature) - profile.preferredTemperature) * 4;
   const moisture = 100 - Math.abs((environment.substrateMoisture ?? profile.preferredSubstrateMoisture) - profile.preferredSubstrateMoisture) * 0.9;
   const photoperiod = 100 - Math.abs((environment.lightHours ?? profile.preferredLightHours) - profile.preferredLightHours) * 3;
-  return Math.round(clamp((light + humidity + nutrition + health + temperature + moisture + photoperiod) / 7));
+  const airflow = 100 - Math.abs((environment.airflow ?? profile.preferredAirflow) - profile.preferredAirflow) * 1.1;
+  const substratePH = 100 - Math.abs((environment.substratePH ?? profile.preferredPH) - profile.preferredPH) * 18;
+  return Math.round(clamp((light + humidity + nutrition + health + temperature + moisture + photoperiod + airflow + substratePH) / 9));
 }
 
 export function speciesGrowthDurationFactor(scientificName: string, difficulty: "Easy" | "Moderate" | "Advanced"): number {
