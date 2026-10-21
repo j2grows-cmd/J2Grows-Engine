@@ -74,6 +74,7 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
     greenhouseEnvironment: environment,
     researchUnlocks: value.researchUnlocks.filter((item: unknown): item is string => typeof item === "string"),
     facilityLevels: normalizeFacilityLevels(record(value.facilityLevels) ? value.facilityLevels : undefined),
+    facilityCondition: finite(value.facilityCondition, 100, 0, 100),
     staffState: normalizeStaffState(record(value.staffState) ? value.staffState : DEFAULT_STAFF_STATE),
     ledger,
     financeArrears: finite(value.financeArrears, 0, 0, 1_000_000_000),
