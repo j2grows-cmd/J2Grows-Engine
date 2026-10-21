@@ -521,3 +521,16 @@ test("active mutation analysis and breeding reservations cannot overlap", () => 
   assert.equal(startMutationAnalysis(breeding.state, ready.specimens[0].id).ok, false);
   assert.equal(propagatePlant(breeding.state, ready.specimens[0].id, "tissue-culture").ok, false);
 });
+
+
+test("controlled-environment research reduces breeding failure risk", () => {
+  const bought = purchasePlant(createGameState("controlled-cross"), species[0]);
+  const second = purchasePlant(bought.state, species[0]);
+  const base = { ...second.state, specimens: second.state.specimens.map((item) => ({ ...item, stage: "Breeding-ready", health: 100 })) };
+  const plain = startBreeding(base, base.specimens[0].id, base.specimens[1].id);
+  const improvedState = { ...base, researchUnlocks: ["controlled-environment"] };
+  const improved = startBreeding(improvedState, improvedState.specimens[0].id, improvedState.specimens[1].id);
+  assert.equal(plain.ok, true);
+  assert.equal(improved.ok, true);
+  assert.ok(improved.state.breedingProjects[0].failureChance <= plain.state.breedingProjects[0].failureChance);
+});
