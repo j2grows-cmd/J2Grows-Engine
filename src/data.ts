@@ -35,6 +35,10 @@ export type Specimen = {
   pestLoad?: number;
   /** Current disease pressure on a 0–100 scale. */
   diseaseLoad?: number;
+  /** Whether staff/research expertise has identified current pest pressure. */
+  pestDiagnosed?: boolean;
+  /** Whether staff/research expertise has identified current disease pressure. */
+  diseaseDiagnosed?: boolean;
   /** Earliest simulation day imported stock may leave quarantine if healthy enough. */
   quarantineUntilDay?: number;
   /** Dead specimens remain in the collection record but cannot be used. */
