@@ -449,7 +449,12 @@ test("global supplier orders charge freight, arrive on schedule, and add quarant
   assert.equal(collected.state.specimens.length, 2);
   assert.equal(collected.state.specimens[0].location, "Supplier quarantine · Southeast Asia");
   assert.equal(collected.state.specimens[0].diseaseLoad, 12);
+  assert.equal(collected.state.specimens[0].quarantineUntilDay, collected.state.day + 3);
   assert.equal(collected.state.supplierShipments[0].status, "collected");
+  let released = collected.state;
+  for (let i = 0; i < 3; i++) released = advanceGameDay(released).state;
+  assert.equal(released.specimens[0].location, "Home greenhouse");
+  assert.equal(released.specimens[0].quarantineUntilDay, undefined);
   assert.equal(collectSupplierShipment(collected.state, state.supplierShipments[0].id).ok, false);
 });
 
