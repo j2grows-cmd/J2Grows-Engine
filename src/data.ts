@@ -31,6 +31,10 @@ export type Specimen = {
   stableMutationIds?: string[];
   /** Reserved by an active breeding project; prevents sale or reuse. */
   reservedByProjectId?: string;
+  /** Current pest pressure on a 0–100 scale. */
+  pestLoad?: number;
+  /** Current disease pressure on a 0–100 scale. */
+  diseaseLoad?: number;
   /** Dead specimens remain in the collection record but cannot be used. */
   dead?: boolean;
   /** Simulated days spent in the current established growth stage. */
