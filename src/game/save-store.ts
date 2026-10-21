@@ -46,6 +46,8 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
     temperature: finite(env.temperature, DEFAULT_ENVIRONMENT.temperature ?? 24, 10, 35),
     substrateMoisture: finite(env.substrateMoisture, DEFAULT_ENVIRONMENT.substrateMoisture ?? 55, 0, 100),
     lightHours: finite(env.lightHours, DEFAULT_ENVIRONMENT.lightHours ?? 12, 0, 24),
+    airflow: finite(env.airflow, DEFAULT_ENVIRONMENT.airflow ?? 45, 0, 100),
+    substratePH: finite(env.substratePH, DEFAULT_ENVIRONMENT.substratePH ?? 6, 3, 9),
   };
   const rawLedger = Array.isArray(value.ledger) ? value.ledger : [];
   const ledger: LedgerEntry[] = rawLedger.filter((item: unknown) => record(item)
