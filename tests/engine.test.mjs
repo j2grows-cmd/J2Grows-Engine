@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan } from "../src/game/engine.ts";
+import { createGameState, purchasePlant, sellPlant, setSpecimenProtection, observeSpecimen, advanceGameDay, startMutationAnalysis, unlockResearchNode, startBreeding, setGreenhouseEnvironment, beginStaffTraining, propagatePlant, treatSpecimen, borrowFunds, repayLoan, liquidateAssets } from "../src/game/engine.ts";
 import { findSpecies, species } from "../src/data.ts";
 
 test("new game is headless and starts with the intended economy", () => {
@@ -274,4 +274,39 @@ test("loans have a fixed cap, accrue weekly interest, and can be repaid", () => 
   assert.equal(repaid.ok, true);
   assert.equal(repaid.state.financeDebt, 2);
   assert.equal(repayLoan(repaid.state, 100).state.financeDebt, 2);
+});
+
+
+test("voluntary liquidation sells eligible assets and settles arrears before loan principal", () => {
+  const bought = purchasePlant(createGameState("liquidation"), species[0]);
+  const specimen = bought.state.specimens[0];
+  const state = {
+    ...bought.state,
+    cash: 0,
+    financeArrears: 10,
+    financeDebt: 5,
+    financialStatus: "arrears",
+    ledger: [{ id: "opening", day: 1, category: "other", description: "Opening balance", amount: 0, balance: 0 }],
+    specimens: bought.state.specimens.map((item) => item.id === specimen.id ? { ...item, value: 50 } : item),
+  };
+  const liquidated = liquidateAssets(state);
+  assert.equal(liquidated.ok, true);
+  assert.equal(liquidated.state.specimens.length, 0);
+  assert.equal(liquidated.state.financeArrears, 0);
+  assert.equal(liquidated.state.financeDebt, 0);
+  assert.equal(liquidated.state.cash, 35);
+  assert.equal(liquidated.state.financialStatus, "solvent");
+});
+
+test("liquidation protects reserved and protected specimens", () => {
+  const bought = purchasePlant(createGameState("liquidation-protection"), species[0]);
+  const specimen = bought.state.specimens[0];
+  const state = {
+    ...bought.state,
+    financeDebt: 20,
+    specimens: bought.state.specimens.map((item) => item.id === specimen.id ? { ...item, protected: true } : item),
+  };
+  const liquidated = liquidateAssets(state);
+  assert.equal(liquidated.ok, false);
+  assert.equal(liquidated.state.specimens.length, 1);
 });
