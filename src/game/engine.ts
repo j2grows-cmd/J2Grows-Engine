@@ -23,7 +23,7 @@ export type GameState = {
   cash: number; research: number; day: number; projectStarted: boolean;
   analysisTargetSpecimenId?: string; analysisStartedDay?: number; analysisEquipmentLevel: number;
   greenhouseEnvironment: PlantEnvironment; researchUnlocks: string[];
-  facilityLevels: FacilityLevels; staffState: StaffState;
+  facilityLevels: FacilityLevels; facilityCondition: number; staffState: StaffState;
   ledger: LedgerEntry[]; financeArrears: number; financeDebt: number; financialStatus: FinancialStatus;
   customerOrders: CustomerOrder[]; reputation: number;
 };
@@ -179,6 +179,14 @@ export function unlockResearchNode(state: GameState,id: string): ActionResult {
   if(!next)return result(state,false,RESEARCH_TREE.some(n=>n.id===id)?"Research points or prerequisites are missing.":"Research node not found.");
   return result({...state,research:next.points,researchUnlocks:next.unlocked},true,"Research unlocked: "+id.replaceAll("-"," ")+".");
 }
+export function maintainFacilities(state: GameState): ActionResult {
+  const installedLevels = state.facilityLevels.propagationBench + state.facilityLevels.environmentalController + state.analysisEquipmentLevel;
+  if (installedLevels <= 0) return result(state, false, "Install equipment before scheduling facility maintenance.");
+  if (state.facilityCondition >= 100) return result(state, false, "Facilities are already in full working condition.");
+  const cost = 20 + installedLevels * 5;
+  if (state.cash < cost) return result(state, false, "Not enough funds for facility maintenance.");
+  return result({ ...state, cash: state.cash - cost, facilityCondition: Math.min(100, state.facilityCondition + 50) }, true, "Facility maintenance completed for £" + cost + ".");
+}
 export function upgradeFacility(state: GameState,name: FacilityName): ActionResult {
   const cost=nextFacilityUpgradeCost(name,state.facilityLevels,state.analysisEquipmentLevel);
   if(cost===null)return result(state,false,"Facility is max level or unavailable.");
@@ -286,7 +294,7 @@ export function startMutationAnalysis(state: GameState,id: string): ActionResult
   return result({...state,cash:state.cash-25,projectStarted:true,analysisTargetSpecimenId:id,analysisStartedDay:state.day},true,"Mutation Analysis started for "+specimen.nickname+".");
 }
 export function advanceGameDay(state: GameState): ActionResult {
-  const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
+  const day=state.day+1, staff=advanceStaffDay(state.staffState, day), environment=applyEnvironmentalController(state.greenhouseEnvironment,state.facilityLevels.environmentalController,state.facilityCondition), care=(effectiveStaffCareCondition(environment,staff)+environment.health)/2;
   const notices:string[]=[];
   const specimens=state.specimens.map(s=>{
     if(s.dead||s.health<=0)return {...s,health:0,dead:true,value:0};
@@ -329,8 +337,15 @@ export function advanceGameDay(state: GameState): ActionResult {
   });
   const finished=new Set(projects.filter(p=>p.status!=="active").map(p=>p.id));
   const unreserved=specimens.map(s=>s.reservedByProjectId&&finished.has(s.reservedByProjectId)?({...s,reservedByProjectId:undefined}):s);
-  let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff,customerOrders:[...(state.customerOrders??[])],reputation:state.reputation??50};
+  let next:GameState={...state,day,cash:state.cash,specimens:unreserved,breedingProjects:projects,staffState:staff,customerOrders:[...(state.customerOrders??[])],reputation:state.reputation??50,facilityCondition:Math.max(0,Math.min(100,state.facilityCondition??100))};
   if(day % 7 === 0){
+    const installedLevels = state.facilityLevels.propagationBench + state.facilityLevels.environmentalController + state.analysisEquipmentLevel;
+    if(installedLevels > 0){
+      const maintenanceStaff = staff.employees.filter((employee) => employee.role === "maintenance-technician" && employee.morale >= 20).length;
+      const wear = Math.max(0, installedLevels * (maintenanceStaff > 0 ? 0.5 : 1));
+      next = { ...next, facilityCondition: Math.max(0, (next.facilityCondition ?? 100) - wear) };
+      if(next.facilityCondition < 40) notices.push("Facility condition is degraded; environmental controls are less effective. Schedule maintenance.");
+    }
     const weeklyCost = weeklyStaffOperatingCost(staff) + weeklyFacilityOperatingCost(state.facilityLevels, state.analysisEquipmentLevel, state.researchUnlocks.includes("routine-automation"));
     if((next.financeDebt ?? 0) > 0){
       const interest = Math.max(1, Math.ceil(next.financeDebt * LOAN_INTEREST_RATE_PER_WEEK));
