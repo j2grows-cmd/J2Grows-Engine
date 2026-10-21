@@ -1,4 +1,4 @@
-import type { GameState, LedgerEntry, FinancialStatus } from "./engine.ts";
+import type { GameState, LedgerEntry, FinancialStatus, CustomerOrder } from "./engine.ts";
 import { DEFAULT_STAFF_STATE, normalizeStaffState } from "./staff.ts";
 import { normalizeFacilityLevels } from "./facilities.ts";
 import { DEFAULT_ENVIRONMENT } from "./genetics.ts";
@@ -50,6 +50,7 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
     && typeof item.balance === "number" && Number.isFinite(item.balance)
   ).slice(-499) as LedgerEntry[];
   if (ledger.length === 0) ledger.push({ id: String(value.simulationSeed) + ":opening-balance", day: Math.floor(finite(value.day, 1, 1, 1_000_000_000)), category: "other", description: "Opening balance carried forward", amount: 0, balance: finite(value.cash, 0, 0, 1_000_000_000) });
+  const customerOrders: CustomerOrder[] = (Array.isArray(value.customerOrders) ? value.customerOrders : []).filter((item: unknown) => record(item) && typeof item.id === "string" && typeof item.speciesId === "string" && typeof item.quantity === "number" && Number.isFinite(item.quantity) && item.quantity > 0 && typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice) && ["retail", "wholesale", "auction"].includes(String(item.channel)) && typeof item.createdDay === "number" && Number.isFinite(item.createdDay) && typeof item.dueDay === "number" && Number.isFinite(item.dueDay) && ["open", "fulfilled", "expired"].includes(String(item.status))).slice(-100) as CustomerOrder[];
   const financialStatus: FinancialStatus = value.financialStatus === "insolvent" && finite(value.financeArrears, 0, 0, 1_000_000_000) >= 100 ? "insolvent" : value.financialStatus === "arrears" || finite(value.financeArrears, 0, 0, 1_000_000_000) > 0 ? "arrears" : "solvent";
   const repaired = (value.saveFormatVersion === SAVE_FORMAT_VERSION ? 0 : 1)
     + (Array.isArray(value.ledger) ? 0 : 1)
@@ -77,6 +78,8 @@ export function normalizeGameSave(value: unknown, now = Date.now()): SaveNormali
     ledger,
     financeArrears: finite(value.financeArrears, 0, 0, 1_000_000_000),
     financeDebt: finite(value.financeDebt, 0, 0, 1_000_000_000),
+    customerOrders,
+    reputation: finite(value.reputation, 50, 0, 100),
     financialStatus,
   } as unknown as GameState;
   return { state, repaired };
