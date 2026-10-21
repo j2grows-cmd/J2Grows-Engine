@@ -575,3 +575,17 @@ test("mature Alocasia death can also result in no viable salvage material", () =
   assert.equal(advanced.state.specimens.length, 1);
   assert.match(advanced.message, /without viable propagation material/i);
 });
+
+
+test("pest and disease diagnosis requires field-notes research or horticulturist expertise", () => {
+  const bought = purchasePlant(createGameState("diagnosis-expertise"), species[0]);
+  const id = bought.state.specimens[0].id;
+  const affected = { ...bought.state, specimens: bought.state.specimens.map((item) => item.id === id ? { ...item, pestLoad: 40, diseaseLoad: 50 } : item) };
+  const basic = observeSpecimen(affected, id);
+  assert.equal(basic.state.specimens[0].pestDiagnosed, false);
+  assert.equal(basic.state.specimens[0].diseaseDiagnosed, false);
+  const expertState = { ...affected, researchUnlocks: ["field-notes"] };
+  const expert = observeSpecimen(expertState, id);
+  assert.equal(expert.state.specimens[0].pestDiagnosed, true);
+  assert.equal(expert.state.specimens[0].diseaseDiagnosed, true);
+});
