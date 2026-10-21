@@ -8,6 +8,7 @@ import { applyEnvironmentalController, canPurchaseFacilityUpgrade, nextFacilityU
 import { advanceStaffDay, canStartStaffTraining, DEFAULT_STAFF_STATE, effectiveStaffCareCondition, startStaffTraining, STAFF_TRAINING_COST, weeklyStaffOperatingCost, type StaffState } from "./staff.ts";
 import { canCreateOffset } from "./propagation-eligibility.ts";
 import { getSpeciesEconomy, STARTING_CASH, type RarityTier } from "./catalog.ts";
+import { getMarketOffer, getMarketPrice } from "./market.ts";
 import { analyseGenetics, createMutation, createSpecimenGenetics, growVariegation, observePlant, calculateSpecimenValue, DEFAULT_ENVIRONMENT, type PlantEnvironment, type SpecimenGenetics } from "./genetics.ts";
 import { applyTraitTargeting, breedingDurationDays, breedingFailureChance, calculateBreedingCost, calculateTargetedBreedingCost, calculateTargetedFailureChance, inheritTraits, mutationOccurs, type BreedingProject, type TargetableTrait, RESEARCH_TREE, unlockResearch } from "./progression.ts";
 
@@ -72,7 +73,10 @@ function valueOf(specimen: Specimen): number {
   return Math.min(calculated, Math.round(specimen.purchasePrice * .8 * (specimen.stage === "Mature" ? 1.6 : specimen.stage === "Growing" ? 1.25 : 1)));
 }
 export function purchasePlant(state: GameState, plant: Species): ActionResult {
-  const cost = getSpeciesEconomy(plant.id)?.basePrice ?? getSpeciesEconomy(plant.name)?.basePrice ?? plant.basePrice ?? 15;
+  const economy = getSpeciesEconomy(plant.id) ?? getSpeciesEconomy(plant.name);
+  const basePrice = economy?.basePrice ?? plant.basePrice ?? 15;
+  const rarity = (economy?.rarity ?? plant.rarity) as RarityTier;
+  const cost = getMarketPrice(basePrice, plant.id, rarity, state.day);
   if (state.cash < cost) return result(state, false, "Not enough funds to purchase " + plant.name + ".");
   const id = createUniqueSpecimenId(new Set(state.specimens.map(s => s.id)));
   const specimen: Specimen = { id, speciesId: plant.id, nickname: plant.name, location: "Home greenhouse", health: 100, stage: "Juvenile", value: 0, purchasePrice: cost, protected: false, variegation: 0, discovered: false, genetics: createSpecimenGenetics(0, createEventRandom(state.simulationSeed, "purchase:" + state.day + ":" + id)) };
@@ -85,7 +89,11 @@ export function sellPlant(state: GameState, id: string): ActionResult {
   if (specimen.dead || specimen.health <= 0) return result(state, false, "Dead specimens have no sale value.");
   if (specimen.protected) return result(state, false, "Remove specimen protection before selling.");
   if (specimen.reservedByProjectId || (state.projectStarted && state.analysisTargetSpecimenId === id)) return result(state, false, "This specimen is reserved by an active project.");
-  return result({ ...state, cash: state.cash + specimen.value, specimens: state.specimens.filter(s => s.id !== id) }, true, specimen.nickname + " sold for £" + specimen.value + ".");
+  const plant = findSpecies(specimen.speciesId);
+  const economy = getSpeciesEconomy(plant.id) ?? getSpeciesEconomy(plant.name);
+  const rarity = (economy?.rarity ?? plant.rarity) as RarityTier;
+  const payout = getMarketOffer(specimen.value, plant.id, rarity, state.day);
+  return result({ ...state, cash: state.cash + payout, specimens: state.specimens.filter(s => s.id !== id) }, true, specimen.nickname + " sold for £" + payout + ".");
 }
 export function setSpecimenProtection(state: GameState, id: string, protectedValue: boolean): ActionResult {
   const specimen = state.specimens.find(s => s.id === id);
@@ -202,7 +210,7 @@ export function liquidateAssets(state: GameState): ActionResult {
   if ((state.financeArrears ?? 0) <= 0 && (state.financeDebt ?? 0) <= 0) return result(state, false, "Voluntary liquidation is only available while financial obligations remain.");
   const eligible = state.specimens.filter((item) => !item.dead && item.health > 0 && !item.protected && !item.reservedByProjectId && !(state.projectStarted && state.analysisTargetSpecimenId === item.id));
   if (eligible.length === 0) return result(state, false, "No unprotected, unreserved living specimens are available to liquidate.");
-  const proceeds = eligible.reduce((sum, item) => sum + Math.max(0, item.value), 0);
+  const proceeds = eligible.reduce((sum, item) => { const plant = findSpecies(item.speciesId); const economy = getSpeciesEconomy(plant.id) ?? getSpeciesEconomy(plant.name); return sum + getMarketOffer(item.value, plant.id, (economy?.rarity ?? plant.rarity) as RarityTier, state.day); }, 0);
   let cash = state.cash + proceeds;
   const arrearsPaid = Math.min(cash, state.financeArrears ?? 0);
   cash -= arrearsPaid;
